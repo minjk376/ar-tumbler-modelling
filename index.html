@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>AR Tumbler Prototype</title>
+
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      font-family: sans-serif; 
+    }
+
+    #ui {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 999;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+
+    input { 
+      width: 80px; 
+      margin-bottom: 6px; 
+    }
+
+    button { 
+      margin-top: 6px; 
+      padding: 4px 10px; 
+    }
+
+    #result { 
+      margin-top: 8px; 
+      font-weight: bold; 
+      line-height: 1.3;
+    }
+
+    #volumeInfo {
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+
+    .safe {
+      color: #111;
+      font-size: 18px;
+    }
+
+    .overflow {
+      color: red;
+      font-size: 22px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="ui">
+  <div>아래 반지름: <input id="bottomRadius" type="number" value="4"></div>
+  <div>높이: <input id="height" type="number" value="8"></div>
+  <div>음료량(mL): <input id="drinkVolume" type="number" value="300"></div>
+
+  <button onclick="updateCup()">업데이트</button>
+
+  <button onclick="showVolume()">
+    부피 확인하기
+  </button>
+
+  <div id="result"></div>
+
+  <div id="volumeInfo" style="display:none;"></div>
+  <audio id="overflowSound" src="splash.mp3"></audio>
+</div>
+
+<a-scene
+  embedded
+  arjs
+  vr-mode-ui="enabled: false"
+  renderer="logarithmicDepthBuffer: true;"
+>
+  <a-entity camera></a-entity>
+
+  <a-marker preset="hiro">
+    <a-entity id="cup" scale="3 3 3"></a-entity>
+  </a-marker>
+</a-scene>
+
+<script>
+function getValues() {
+  const R = parseFloat(document.getElementById("bottomRadius").value);
+  const h = parseFloat(document.getElementById("height").value);
+  const drink = parseFloat(document.getElementById("drinkVolume").value);
+  const volume = Math.PI * R * R * h;
+
+  return { R, h, drink, volume };
+}
+
+function updateCup() {
+  const { R, h, drink, volume } = getValues();
+
+  const overflowAmount = Math.max(drink - volume, 0);
+
+  const liquidRatio = Math.min(drink / volume, 1);
+  const liquidHeight = liquidRatio * h;
+
+  const puddleRadius = 0.25 + Math.min(overflowAmount / 500, 0.9);
+  const dropletRadius = 0.04 + Math.min(overflowAmount / 3000, 0.08);
+
+  const result = document.getElementById("result");
+  const volumeInfo = document.getElementById("volumeInfo");
+
+  volumeInfo.style.display = "none";
+  volumeInfo.innerHTML = "";
+
+  if (drink > volume) {
+    const sound = document.getElementById("overflowSound");
+    sound.currentTime = 0;
+    sound.play();
+    
+    result.innerHTML = `
+      <div class="overflow">⚠️ OVERFLOW</div>
+      <div>초과량 ${overflowAmount.toFixed(1)} mL</div>
+    `;
+  } else {
+    result.innerHTML = `
+      <div class="safe">✅ 담을 수 있음</div>
+    `;
+  }
+
+  const cup = document.getElementById("cup");
+
+  cup.innerHTML = `
+    <a-cylinder
+      radius="${R / 20}"
+      height="${h / 20}"
+      color="#9e9e9e"
+      opacity="0.35"
+      open-ended="true"
+      position="0 ${h / 40} 0">
+    </a-cylinder>
+
+    <a-cylinder
+      radius="${R / 22}"
+      height="${liquidHeight / 20}"
+      color="skyblue"
+      opacity="0.75"
+      open-ended="false"
+      position="0 ${liquidHeight / 40} 0">
+    </a-cylinder>
+
+    ${
+      drink > volume
+      ? `
+        <a-circle
+          radius="${puddleRadius}"
+          color="skyblue"
+          opacity="0.55"
+          rotation="-90 0 0"
+          position="0 0.005 0">
+        </a-circle>
+
+        <a-sphere
+          radius="${dropletRadius}"
+          color="skyblue"
+          opacity="0.85"
+          position="${R / 25} ${(h / 20) + 0.03} 0">
+        </a-sphere>
+
+        <a-sphere
+          radius="${dropletRadius * 0.8}"
+          color="skyblue"
+          opacity="0.85"
+          position="${-R / 28} ${(h / 20) + 0.02} ${R / 30}">
+        </a-sphere>
+
+        <a-sphere
+          radius="${dropletRadius * 0.7}"
+          color="skyblue"
+          opacity="0.85"
+          position="${R / 35} ${(h / 20) + 0.01} ${-R / 28}">
+        </a-sphere>
+      `
+      : ''
+    }
+  `;
+}
+
+function showVolume() {
+  const { R, h, volume } = getValues();
+
+  const volumeInfo = document.getElementById("volumeInfo");
+
+  volumeInfo.style.display = "block";
+
+  volumeInfo.innerHTML = `
+    <hr>
+    <b>계산 과정</b><br>
+    원기둥 부피 = πr²h<br>
+    = π × ${R}² × ${h}<br>
+    = ${volume.toFixed(1)} mL
+  `;
+}
+
+window.addEventListener("load", function() {
+  updateCup();
+});
+</script>
+
+</body>
+</html>
