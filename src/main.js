@@ -7,6 +7,7 @@ import {
 import { updateCupScene } from './arScene.js'
 
 const elements = {
+  arScene: document.querySelector('a-scene'),
   bottomRadius: document.getElementById('bottomRadius'),
   height: document.getElementById('height'),
   drinkVolume: document.getElementById('drinkVolume'),
@@ -16,6 +17,20 @@ const elements = {
   volumeInfo: document.getElementById('volumeInfo'),
   overflowSound: document.getElementById('overflowSound'),
   cup: document.getElementById('cup'),
+}
+
+function configureArSourceSize() {
+  elements.arScene.setAttribute(
+    'arjs',
+    [
+      'sourceType: webcam',
+      'videoTexture: true',
+      'sourceWidth: 1280',
+      'sourceHeight: 720',
+      `displayWidth: ${window.innerWidth}`,
+      `displayHeight: ${window.innerHeight}`,
+    ].join('; '),
+  )
 }
 
 function readCupValues() {
@@ -80,6 +95,8 @@ function showVolume() {
   `
 }
 
+configureArSourceSize()
 elements.updateCupButton.addEventListener('click', updateCup)
 elements.showVolumeButton.addEventListener('click', showVolume)
 window.addEventListener('load', updateCup)
+window.addEventListener('resize', configureArSourceSize)

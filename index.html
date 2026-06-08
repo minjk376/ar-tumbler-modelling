@@ -5,6 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AR Tumbler Prototype</title>
 
+  <script>
+    ;(() => {
+      const mediaDevices = navigator.mediaDevices
+
+      if (!mediaDevices?.getUserMedia) {
+        return
+      }
+
+      const originalGetUserMedia = mediaDevices.getUserMedia.bind(mediaDevices)
+
+      mediaDevices.getUserMedia = (constraints = {}) => {
+        if (!constraints.video) {
+          return originalGetUserMedia(constraints)
+        }
+
+        const requestedVideo =
+          typeof constraints.video === 'object' ? constraints.video : {}
+
+        return originalGetUserMedia({
+          ...constraints,
+          video: {
+            ...requestedVideo,
+            facingMode: requestedVideo.facingMode ?? { ideal: 'environment' },
+            width: requestedVideo.width ?? { ideal: 1280 },
+            height: requestedVideo.height ?? { ideal: 720 },
+            aspectRatio: requestedVideo.aspectRatio ?? { ideal: 16 / 9 },
+            advanced: [
+              ...(requestedVideo.advanced ?? []),
+              { zoom: 1 },
+            ],
+          },
+        })
+      }
+    })()
+  </script>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
   <script type="module" src="/src/main.js"></script>
@@ -39,7 +74,7 @@
 
   <a-scene
     embedded
-    arjs
+    arjs="sourceType: webcam; videoTexture: true; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720;"
     vr-mode-ui="enabled: false"
     renderer="logarithmicDepthBuffer: true;"
   >

@@ -21,27 +21,15 @@ a-scene {
   z-index: 0;
 }
 
-video,
 canvas,
 .a-canvas {
   position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
+  inset: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
   height: 100dvh !important;
   max-width: none !important;
   max-height: none !important;
-}
-
-video {
-  object-fit: contain !important;
-  background: #000;
-  z-index: -2 !important;
-}
-
-canvas,
-.a-canvas {
   z-index: 0 !important;
 }
 
