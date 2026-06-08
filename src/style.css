@@ -14,9 +14,6 @@ body {
 a-scene {
   position: fixed !important;
   inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  height: 100dvh !important;
   overflow: hidden !important;
   z-index: 1;
 }
@@ -24,11 +21,6 @@ a-scene {
 video {
   position: fixed !important;
   inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  height: 100dvh !important;
-  max-width: none !important;
-  max-height: none !important;
   z-index: 0 !important;
 }
 
@@ -36,11 +28,6 @@ canvas,
 .a-canvas {
   position: fixed !important;
   inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  height: 100dvh !important;
-  max-width: none !important;
-  max-height: none !important;
   z-index: 2 !important;
 }
 
