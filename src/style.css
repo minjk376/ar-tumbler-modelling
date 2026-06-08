@@ -18,7 +18,18 @@ a-scene {
   height: 100vh !important;
   height: 100dvh !important;
   overflow: hidden !important;
-  z-index: 0;
+  z-index: 1;
+}
+
+video {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  max-height: none !important;
+  z-index: 0 !important;
 }
 
 canvas,
@@ -30,14 +41,14 @@ canvas,
   height: 100dvh !important;
   max-width: none !important;
   max-height: none !important;
-  z-index: 0 !important;
+  z-index: 2 !important;
 }
 
 #ui {
   position: fixed;
   top: 10px;
   left: 10px;
-  z-index: 999;
+  z-index: 10;
   display: grid;
   gap: 6px;
   padding: 10px;
