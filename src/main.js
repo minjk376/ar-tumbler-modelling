@@ -29,6 +29,7 @@ const elements = {
   topRadius: document.getElementById('topRadius'),
   modelBottomRadius: document.getElementById('modelBottomRadius'),
   modelHeight: document.getElementById('modelHeight'),
+  swapFrustumRadiiButton: document.getElementById('swapFrustumRadiiButton'),
   rotateLeftButton: document.getElementById('rotateLeftButton'),
   rotateRightButton: document.getElementById('rotateRightButton'),
   zoomOutButton: document.getElementById('zoomOutButton'),
@@ -164,8 +165,17 @@ function updateModelPreview() {
 
   elements.cylinderInputs.hidden = shape.type !== 'cylinder'
   elements.frustumInputs.hidden = shape.type !== 'frustum'
+  elements.swapFrustumRadiiButton.disabled = shape.type !== 'frustum'
   renderModelVolume(shape)
   updateGeneratedModel(elements.modelPreview, shape, modelTransform)
+}
+
+function swapFrustumRadii() {
+  const topRadius = elements.topRadius.value
+
+  elements.topRadius.value = elements.modelBottomRadius.value
+  elements.modelBottomRadius.value = topRadius
+  updateModelPreview()
 }
 
 function setMode(mode) {
@@ -201,6 +211,7 @@ elements.modelRadius.addEventListener('input', updateModelPreview)
 elements.topRadius.addEventListener('input', updateModelPreview)
 elements.modelBottomRadius.addEventListener('input', updateModelPreview)
 elements.modelHeight.addEventListener('input', updateModelPreview)
+elements.swapFrustumRadiiButton.addEventListener('click', swapFrustumRadii)
 elements.rotateLeftButton.addEventListener('click', () => rotateModel(-15))
 elements.rotateRightButton.addEventListener('click', () => rotateModel(15))
 elements.zoomOutButton.addEventListener('click', () => zoomModel(-0.1))
