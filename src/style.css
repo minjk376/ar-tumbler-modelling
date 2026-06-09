@@ -120,6 +120,28 @@ button:active {
   margin-top: 2px;
 }
 
+.shape-list {
+  display: grid;
+  gap: 4px;
+  max-height: 120px;
+  margin: 0;
+  padding-left: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.shape-list-item {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.shape-list-item.selected {
+  border-color: #2563eb;
+  background: #dbeafe;
+  font-weight: 700;
+}
+
 .status,
 #result {
   margin-top: 2px;

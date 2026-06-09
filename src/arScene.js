@@ -44,8 +44,11 @@ function renderOverflowEffects({ radius, height, overflowAmount }) {
   `
 }
 
-function getPreviewMaterial() {
-  return 'color: #f7b267; opacity: 0.62; transparent: true; roughness: 0.55; metalness: 0.05'
+function getPreviewMaterial(index = 0) {
+  const colors = ['#f7b267', '#70c1b3', '#b2dbbf', '#f25f5c']
+  const color = colors[index % colors.length]
+
+  return `color: ${color}; opacity: 0.62; transparent: true; roughness: 0.55; metalness: 0.05`
 }
 
 function getPreviewDimensions({ radius, topRadius, bottomRadius, height }) {
@@ -59,9 +62,9 @@ function getPreviewDimensions({ radius, topRadius, bottomRadius, height }) {
   }
 }
 
-function renderGeneratedShape(shape) {
+function renderGeneratedShape(shape, index, yPosition) {
   const dimensions = getPreviewDimensions(shape)
-  const material = getPreviewMaterial()
+  const material = getPreviewMaterial(index)
 
   if (shape.type === 'frustum') {
     return `
@@ -71,6 +74,7 @@ function renderGeneratedShape(shape) {
         height="${dimensions.height}"
         segments-radial="64"
         material="${material}"
+        position="0 ${yPosition} 0"
         rotation="0 0 0">
       </a-cone>
     `
@@ -82,26 +86,54 @@ function renderGeneratedShape(shape) {
       height="${dimensions.height}"
       segments-radial="64"
       material="${material}"
+      position="0 ${yPosition} 0"
       rotation="0 0 0">
     </a-cylinder>
   `
 }
 
-export function updateGeneratedModel(modelElement, shape, transform) {
-  const dimensions = getPreviewDimensions(shape)
+function getStackLayout(shapes) {
+  const dimensions = shapes.map(getPreviewDimensions)
+  const totalHeight = dimensions.reduce((sum, shape) => sum + shape.height, 0)
+  let cursor = -totalHeight / 2
+
+  return dimensions.map((shapeDimensions) => {
+    const yPosition = cursor + shapeDimensions.height / 2
+    cursor += shapeDimensions.height
+
+    return {
+      dimensions: shapeDimensions,
+      yPosition,
+    }
+  })
+}
+
+export function updateGeneratedModel(modelElement, shapes, transform) {
+  const modelShapes = Array.isArray(shapes) ? shapes : [shapes]
+  const layout = getStackLayout(modelShapes)
+  const maxRadius = Math.max(
+    ...layout.flatMap(({ dimensions }) => [
+      dimensions.radius ?? 0,
+      dimensions.topRadius ?? 0,
+      dimensions.bottomRadius ?? 0,
+    ]),
+    0.48,
+  )
 
   modelElement.setAttribute('visible', 'true')
   modelElement.setAttribute('rotation', `0 ${transform.rotationY} 0`)
   modelElement.setAttribute('scale', `${transform.scale} ${transform.scale} ${transform.scale}`)
   modelElement.innerHTML = `
-    ${renderGeneratedShape(shape)}
+    ${modelShapes
+      .map((shape, index) => renderGeneratedShape(shape, index, layout[index].yPosition))
+      .join('')}
     <a-ring
-      radius-inner="0.48"
-      radius-outer="0.5"
+      radius-inner="${maxRadius * 1.08}"
+      radius-outer="${maxRadius * 1.12}"
       color="#ffffff"
       opacity="0.55"
       rotation="-90 0 0"
-      position="0 ${-dimensions.height / 2} 0">
+      position="0 ${layout[0]?.yPosition - (layout[0]?.dimensions.height ?? 0) / 2} 0">
     </a-ring>
   `
 }
