@@ -44,6 +44,76 @@ function renderOverflowEffects({ radius, height, overflowAmount }) {
   `
 }
 
+function getPreviewMaterial() {
+  return 'color: #f7b267; opacity: 0.62; transparent: true; roughness: 0.55; metalness: 0.05'
+}
+
+function getPreviewDimensions({ radius, topRadius, bottomRadius, height }) {
+  const unitScale = 0.08
+
+  return {
+    radius: radius * unitScale,
+    topRadius: topRadius * unitScale,
+    bottomRadius: bottomRadius * unitScale,
+    height: height * unitScale,
+  }
+}
+
+function renderGeneratedShape(shape) {
+  const dimensions = getPreviewDimensions(shape)
+  const material = getPreviewMaterial()
+
+  if (shape.type === 'frustum') {
+    return `
+      <a-cone
+        radius-top="${dimensions.topRadius}"
+        radius-bottom="${dimensions.bottomRadius}"
+        height="${dimensions.height}"
+        segments-radial="64"
+        material="${material}"
+        rotation="0 0 0">
+      </a-cone>
+    `
+  }
+
+  return `
+    <a-cylinder
+      radius="${dimensions.radius}"
+      height="${dimensions.height}"
+      segments-radial="64"
+      material="${material}"
+      rotation="0 0 0">
+    </a-cylinder>
+  `
+}
+
+export function updateGeneratedModel(modelElement, shape, transform) {
+  const dimensions = getPreviewDimensions(shape)
+
+  modelElement.setAttribute('visible', 'true')
+  modelElement.setAttribute('rotation', `0 ${transform.rotationY} 0`)
+  modelElement.setAttribute('scale', `${transform.scale} ${transform.scale} ${transform.scale}`)
+  modelElement.innerHTML = `
+    ${renderGeneratedShape(shape)}
+    <a-ring
+      radius-inner="0.48"
+      radius-outer="0.5"
+      color="#ffffff"
+      opacity="0.55"
+      rotation="-90 0 0"
+      position="0 ${-dimensions.height / 2} 0">
+    </a-ring>
+  `
+}
+
+export function setModelPreviewVisible(modelElement, isVisible) {
+  modelElement.setAttribute('visible', isVisible ? 'true' : 'false')
+}
+
+export function setOverflowSceneVisible(cupElement, isVisible) {
+  cupElement.setAttribute('visible', isVisible ? 'true' : 'false')
+}
+
 export function updateCupScene(cupElement, {
   radius,
   height,

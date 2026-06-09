@@ -37,29 +37,80 @@ canvas,
   left: 10px;
   z-index: 10;
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  width: min(330px, calc(100vw - 20px));
+  max-height: calc(100vh - 20px);
+  overflow: auto;
   padding: 10px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
   color: #111;
-  font-size: 16px;
+  font-size: 15px;
+  box-sizing: border-box;
 }
 
 label {
   display: grid;
-  grid-template-columns: 92px 80px;
+  grid-template-columns: minmax(92px, 1fr) 94px;
   align-items: center;
   gap: 8px;
 }
 
-input {
-  width: 80px;
+input,
+select {
+  width: 94px;
   box-sizing: border-box;
+  font: inherit;
 }
 
 button {
-  padding: 4px 10px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid #9aa3ad;
+  border-radius: 6px;
+  background: #f7f9fb;
+  color: #111;
+  font: inherit;
   cursor: pointer;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+.mode-picker,
+.panel {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mode-picker {
+  grid-template-columns: 1fr 1fr;
+}
+
+.mode-picker legend {
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+  font-weight: 700;
+}
+
+.mode-picker label {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid #c7cdd4;
+  border-radius: 6px;
+  background: #fff;
+  line-height: 1.2;
+}
+
+.mode-picker input {
+  width: auto;
 }
 
 .actions {
@@ -69,6 +120,7 @@ button {
   margin-top: 2px;
 }
 
+.status,
 #result {
   margin-top: 2px;
   font-weight: bold;
@@ -88,4 +140,23 @@ button {
 .overflow {
   color: red;
   font-size: 22px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 520px) {
+  #ui {
+    font-size: 14px;
+  }
+
+  label {
+    grid-template-columns: 1fr 86px;
+  }
+
+  input,
+  select {
+    width: 86px;
+  }
 }
