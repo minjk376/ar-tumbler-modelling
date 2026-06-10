@@ -2,14 +2,13 @@ import './style.css'
 import {
   calculateCylinderVolume,
   calculateFrustumVolume,
-  calculateOverflowAmount,
-  calculateLiquidHeight,
 } from './geometry.js'
 import {
   setModelPreviewVisible,
   setOverflowSceneVisible,
-  updateCupScene,
   updateGeneratedModel,
+  updateMarkerModel,
+  updatePreviewCameraZoom,
 } from './arScene.js'
 
 const modes = {
@@ -33,6 +32,7 @@ const elements = {
   addCylinderButton: document.getElementById('addCylinderButton'),
   addFrustumButton: document.getElementById('addFrustumButton'),
   shapeList: document.getElementById('shapeList'),
+  entranceInfo: document.getElementById('entranceInfo'),
   deleteShapeButton: document.getElementById('deleteShapeButton'),
   moveShapeUpButton: document.getElementById('moveShapeUpButton'),
   moveShapeDownButton: document.getElementById('moveShapeDownButton'),
@@ -41,26 +41,25 @@ const elements = {
   zoomOutButton: document.getElementById('zoomOutButton'),
   zoomInButton: document.getElementById('zoomInButton'),
   modelVolumeInfo: document.getElementById('modelVolumeInfo'),
-  bottomRadius: document.getElementById('bottomRadius'),
-  height: document.getElementById('height'),
   drinkVolume: document.getElementById('drinkVolume'),
   updateCupButton: document.getElementById('updateCupButton'),
-  showVolumeButton: document.getElementById('showVolumeButton'),
   result: document.getElementById('result'),
   volumeInfo: document.getElementById('volumeInfo'),
   overflowSound: document.getElementById('overflowSound'),
   cup: document.getElementById('cup'),
   modelPreview: document.getElementById('modelPreview'),
+  previewCamera: document.getElementById('previewCamera'),
 }
 
 const modelTransform = {
-  rotationY: 0,
-  scale: 1,
+  rotationY: 28,
+  zoom: 1.15,
 }
 
 let nextShapeId = 1
 let selectedShapeIndex = 0
 let modelShapes = [createDefaultShape('cylinder')]
+let overflowEffectTimer = null
 
 function createDefaultShape(type) {
   const id = nextShapeId
@@ -89,21 +88,50 @@ function readNumber(input, fallback = 0) {
   return Number.isFinite(value) ? value : fallback
 }
 
-function readCupValues() {
-  const radius = readNumber(elements.bottomRadius)
-  const height = readNumber(elements.height)
-  const drinkVolume = readNumber(elements.drinkVolume)
-  const volume = calculateCylinderVolume(radius, height)
-
-  return { radius, height, drinkVolume, volume }
-}
-
-function calculateShapeVolume(shape) {
+export function calculateShapeVolume(shape) {
   if (shape.type === 'frustum') {
     return calculateFrustumVolume(shape.topRadius, shape.bottomRadius, shape.height)
   }
 
   return calculateCylinderVolume(shape.radius, shape.height)
+}
+
+export function calculateModelVolume(shapes = modelShapes) {
+  return shapes.reduce((sum, shape) => sum + calculateShapeVolume(shape), 0)
+}
+
+function getEntranceRadius(shape) {
+  return shape.type === 'frustum' ? shape.topRadius : shape.radius
+}
+
+export function getCurrentEntranceInfo() {
+  const index = modelShapes.length - 1
+  const shape = modelShapes[index]
+
+  if (!shape) {
+    return null
+  }
+
+  return {
+    index,
+    displayNumber: 1,
+    shape,
+    radius: getEntranceRadius(shape),
+  }
+}
+
+export function getOverflowVerificationInfo() {
+  const drinkVolume = readNumber(elements.drinkVolume)
+  const totalVolume = calculateModelVolume()
+  const entrance = getCurrentEntranceInfo()
+
+  return {
+    shapes: modelShapes,
+    drinkVolume,
+    totalVolume,
+    entrance,
+    overflows: drinkVolume > totalVolume,
+  }
 }
 
 function getShapeName(shape) {
@@ -140,59 +168,6 @@ function readModelShape() {
   }
 }
 
-function resetVolumeInfo() {
-  elements.volumeInfo.hidden = true
-  elements.volumeInfo.innerHTML = ''
-}
-
-function playOverflowSound() {
-  elements.overflowSound.currentTime = 0
-  elements.overflowSound.play()
-}
-
-function renderResult({ drinkVolume, volume, overflowAmount }) {
-  if (drinkVolume > volume) {
-    playOverflowSound()
-
-    elements.result.innerHTML = `
-      <div class="overflow">OVERFLOW</div>
-      <div>초과량: ${overflowAmount.toFixed(1)} mL</div>
-    `
-    return
-  }
-
-  elements.result.innerHTML = `
-    <div class="safe">아직 넘치지 않음</div>
-  `
-}
-
-function updateCup() {
-  const values = readCupValues()
-  const overflowAmount = calculateOverflowAmount(values.drinkVolume, values.volume)
-  const liquidHeight = calculateLiquidHeight(
-    values.drinkVolume,
-    values.volume,
-    values.height,
-  )
-
-  resetVolumeInfo()
-  renderResult({ ...values, overflowAmount })
-  updateCupScene(elements.cup, { ...values, overflowAmount, liquidHeight })
-}
-
-function showVolume() {
-  const { radius, height, volume } = readCupValues()
-
-  elements.volumeInfo.hidden = false
-  elements.volumeInfo.innerHTML = `
-    <hr>
-    <b>계산 과정</b><br>
-    원기둥 부피 = π × r² × h<br>
-    = π × ${radius}² × ${height}<br>
-    = ${volume.toFixed(1)} mL
-  `
-}
-
 function syncSelectedShapeFromInputs() {
   if (!modelShapes[selectedShapeIndex]) {
     return
@@ -221,22 +196,43 @@ function loadSelectedShapeToInputs() {
 }
 
 function renderShapeList() {
+  const entrance = getCurrentEntranceInfo()
+
   elements.shapeList.innerHTML = modelShapes
-    .map((shape, index) => {
-      const selectedClass = index === selectedShapeIndex ? ' selected' : ''
+    .map((_, displayIndex) => {
+      const shapeIndex = modelShapes.length - 1 - displayIndex
+      const shape = modelShapes[shapeIndex]
+      const selectedClass = shapeIndex === selectedShapeIndex ? ' selected' : ''
+      const entranceClass = shapeIndex === entrance?.index ? ' entrance' : ''
+      const entranceLabel = shapeIndex === entrance?.index ? '<span>입구</span>' : ''
 
       return `
         <li>
           <button
-            class="shape-list-item${selectedClass}"
+            class="shape-list-item${selectedClass}${entranceClass}"
             type="button"
-            data-shape-index="${index}">
-            ${index + 1}. ${getShapeName(shape)}
+            data-shape-index="${shapeIndex}">
+            <span>${displayIndex + 1}. ${getShapeName(shape)}</span>
+            ${entranceLabel}
           </button>
         </li>
       `
     })
     .join('')
+}
+
+function renderEntranceInfo() {
+  const entrance = getCurrentEntranceInfo()
+
+  if (!entrance) {
+    elements.entranceInfo.textContent = ''
+    return
+  }
+
+  elements.entranceInfo.innerHTML = `
+    입구: ${entrance.displayNumber}번 ${getShapeName(entrance.shape)}의 윗면
+    <small>반지름 ${entrance.radius} cm</small>
+  `
 }
 
 function renderModelVolume() {
@@ -247,10 +243,7 @@ function renderModelVolume() {
       return `${index + 1}. ${getShapeName(shape)}: ${volume.toFixed(1)} mL`
     })
     .join('<br>')
-  const totalVolume = modelShapes.reduce(
-    (sum, shape) => sum + calculateShapeVolume(shape),
-    0,
-  )
+  const totalVolume = calculateModelVolume()
 
   elements.modelVolumeInfo.innerHTML = `
     <b>도형별 부피</b><br>
@@ -258,6 +251,52 @@ function renderModelVolume() {
     <hr>
     <b>전체 부피: ${totalVolume.toFixed(1)} mL</b>
   `
+}
+
+function renderOverflowVerification() {
+  const verification = getOverflowVerificationInfo()
+  const resultClass = verification.overflows ? 'overflow' : 'safe'
+  const resultText = verification.overflows ? '넘침' : '담을 수 있음'
+
+  elements.result.innerHTML = `<div class="${resultClass}">${resultText}</div>`
+  elements.volumeInfo.hidden = false
+  elements.volumeInfo.innerHTML = `
+    <b>총 부피</b>: ${verification.totalVolume.toFixed(1)} mL<br>
+    <b>음료량</b>: ${verification.drinkVolume.toFixed(1)} mL<br>
+    <b>입구</b>: ${verification.entrance.displayNumber}번 ${getShapeName(verification.entrance.shape)}의 윗면
+    <small>입구 반지름 ${verification.entrance.radius} cm</small>
+  `
+}
+
+function playOverflowSound() {
+  elements.overflowSound.currentTime = 0
+  elements.overflowSound.play().catch(() => {})
+}
+
+function updateOverflowVerification({ playEffects = false } = {}) {
+  const verification = getOverflowVerificationInfo()
+  const overflowAmount = Math.max(verification.drinkVolume - verification.totalVolume, 0)
+  const shouldPlayEffects = playEffects && verification.overflows
+
+  updateMarkerModel(elements.cup, verification.shapes, {
+    overflowAmount: shouldPlayEffects ? overflowAmount : 0,
+  })
+  renderOverflowVerification()
+
+  if (overflowEffectTimer) {
+    clearTimeout(overflowEffectTimer)
+    overflowEffectTimer = null
+  }
+
+  if (!shouldPlayEffects) {
+    return
+  }
+
+  playOverflowSound()
+  overflowEffectTimer = window.setTimeout(() => {
+    updateMarkerModel(elements.cup, verification.shapes)
+    overflowEffectTimer = null
+  }, 1000)
 }
 
 function updateModelPreview({ syncInputs = true } = {}) {
@@ -271,11 +310,13 @@ function updateModelPreview({ syncInputs = true } = {}) {
   elements.frustumInputs.hidden = selectedShape?.type !== 'frustum'
   elements.swapFrustumRadiiButton.disabled = selectedShape?.type !== 'frustum'
   elements.deleteShapeButton.disabled = modelShapes.length <= 1
-  elements.moveShapeUpButton.disabled = selectedShapeIndex <= 0
-  elements.moveShapeDownButton.disabled = selectedShapeIndex >= modelShapes.length - 1
+  elements.moveShapeUpButton.disabled = selectedShapeIndex >= modelShapes.length - 1
+  elements.moveShapeDownButton.disabled = selectedShapeIndex <= 0
   renderShapeList()
+  renderEntranceInfo()
   renderModelVolume()
   updateGeneratedModel(elements.modelPreview, modelShapes, modelTransform)
+  updatePreviewCameraZoom(elements.previewCamera, modelTransform.zoom)
 }
 
 function selectShape(index) {
@@ -335,7 +376,8 @@ function setMode(mode) {
     return
   }
 
-  updateCup()
+  syncSelectedShapeFromInputs()
+  updateOverflowVerification()
 }
 
 function rotateModel(degrees) {
@@ -344,7 +386,7 @@ function rotateModel(degrees) {
 }
 
 function zoomModel(delta) {
-  modelTransform.scale = Math.min(Math.max(modelTransform.scale + delta, 0.5), 2)
+  modelTransform.zoom = Math.min(Math.max(modelTransform.zoom + delta, 0.65), 2.2)
   updateModelPreview()
 }
 
@@ -359,8 +401,8 @@ elements.swapFrustumRadiiButton.addEventListener('click', swapFrustumRadii)
 elements.addCylinderButton.addEventListener('click', () => addShape('cylinder'))
 elements.addFrustumButton.addEventListener('click', () => addShape('frustum'))
 elements.deleteShapeButton.addEventListener('click', deleteSelectedShape)
-elements.moveShapeUpButton.addEventListener('click', () => moveSelectedShape(-1))
-elements.moveShapeDownButton.addEventListener('click', () => moveSelectedShape(1))
+elements.moveShapeUpButton.addEventListener('click', () => moveSelectedShape(1))
+elements.moveShapeDownButton.addEventListener('click', () => moveSelectedShape(-1))
 elements.shapeList.addEventListener('click', (event) => {
   const shapeButton = event.target.closest('[data-shape-index]')
 
@@ -374,6 +416,6 @@ elements.rotateLeftButton.addEventListener('click', () => rotateModel(-15))
 elements.rotateRightButton.addEventListener('click', () => rotateModel(15))
 elements.zoomOutButton.addEventListener('click', () => zoomModel(-0.1))
 elements.zoomInButton.addEventListener('click', () => zoomModel(0.1))
-elements.updateCupButton.addEventListener('click', updateCup)
-elements.showVolumeButton.addEventListener('click', showVolume)
+elements.updateCupButton.addEventListener('click', () => updateOverflowVerification({ playEffects: true }))
+elements.drinkVolume.addEventListener('input', updateOverflowVerification)
 window.addEventListener('load', () => setMode(modes.model))

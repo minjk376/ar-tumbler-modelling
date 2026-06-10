@@ -14,32 +14,43 @@ function renderOverflowEffects({ radius, height, overflowAmount }) {
 
   return `
     <a-circle
+      class="overflow-effect"
       radius="${puddleRadius}"
       color="skyblue"
       opacity="0.55"
       rotation="-90 0 0"
-      position="0 0.005 0">
+      position="0 0.006 0">
+      animation="property: opacity; from: 0.55; to: 0; dur: 900; easing: easeOutQuad">
     </a-circle>
 
     <a-sphere
+      class="overflow-effect"
       radius="${dropletRadius}"
       color="skyblue"
       opacity="0.85"
       position="${radius / 25} ${(height / 20) + 0.03} 0">
+      animation="property: position; to: ${radius / 22} ${(height / 20) - 0.12} 0; dur: 700; easing: easeInQuad">
+      animation__fade="property: opacity; from: 0.85; to: 0; dur: 800; easing: easeOutQuad">
     </a-sphere>
 
     <a-sphere
+      class="overflow-effect"
       radius="${dropletRadius * 0.8}"
       color="skyblue"
       opacity="0.85"
       position="${-radius / 28} ${(height / 20) + 0.02} ${radius / 30}">
+      animation="property: position; to: ${-radius / 25} ${(height / 20) - 0.1} ${radius / 27}; dur: 720; easing: easeInQuad">
+      animation__fade="property: opacity; from: 0.85; to: 0; dur: 820; easing: easeOutQuad">
     </a-sphere>
 
     <a-sphere
+      class="overflow-effect"
       radius="${dropletRadius * 0.7}"
       color="skyblue"
       opacity="0.85"
       position="${radius / 35} ${(height / 20) + 0.01} ${-radius / 28}">
+      animation="property: position; to: ${radius / 31} ${(height / 20) - 0.09} ${-radius / 25}; dur: 690; easing: easeInQuad">
+      animation__fade="property: opacity; from: 0.85; to: 0; dur: 790; easing: easeOutQuad">
     </a-sphere>
   `
 }
@@ -108,34 +119,73 @@ function getStackLayout(shapes) {
   })
 }
 
+function getBottomAlignedStackLayout(shapes) {
+  const dimensions = shapes.map(getPreviewDimensions)
+  let cursor = 0
+
+  return dimensions.map((shapeDimensions) => {
+    const yPosition = cursor + shapeDimensions.height / 2
+    cursor += shapeDimensions.height
+
+    return {
+      dimensions: shapeDimensions,
+      yPosition,
+    }
+  })
+}
+
 export function updateGeneratedModel(modelElement, shapes, transform) {
   const modelShapes = Array.isArray(shapes) ? shapes : [shapes]
   const layout = getStackLayout(modelShapes)
-  const maxRadius = Math.max(
-    ...layout.flatMap(({ dimensions }) => [
-      dimensions.radius ?? 0,
-      dimensions.topRadius ?? 0,
-      dimensions.bottomRadius ?? 0,
-    ]),
-    0.48,
-  )
 
   modelElement.setAttribute('visible', 'true')
   modelElement.setAttribute('rotation', `0 ${transform.rotationY} 0`)
-  modelElement.setAttribute('scale', `${transform.scale} ${transform.scale} ${transform.scale}`)
+  modelElement.setAttribute('scale', `${transform.zoom} ${transform.zoom} ${transform.zoom}`)
   modelElement.innerHTML = `
     ${modelShapes
       .map((shape, index) => renderGeneratedShape(shape, index, layout[index].yPosition))
       .join('')}
-    <a-ring
-      radius-inner="${maxRadius * 1.08}"
-      radius-outer="${maxRadius * 1.12}"
-      color="#ffffff"
-      opacity="0.55"
-      rotation="-90 0 0"
-      position="0 ${layout[0]?.yPosition - (layout[0]?.dimensions.height ?? 0) / 2} 0">
-    </a-ring>
   `
+}
+
+export function updateMarkerModel(modelElement, shapes, { overflowAmount = 0 } = {}) {
+  const modelShapes = Array.isArray(shapes) ? shapes : [shapes]
+  const layout = getBottomAlignedStackLayout(modelShapes)
+  const dimensions = modelShapes.map(getPreviewDimensions)
+  const maxRadius = dimensions.reduce((max, shape) => {
+    const shapeRadius = Math.max(shape.radius ?? 0, shape.topRadius ?? 0, shape.bottomRadius ?? 0)
+    return Math.max(max, shapeRadius)
+  }, 0)
+  const totalHeight = dimensions.reduce((sum, shape) => sum + shape.height, 0)
+
+  modelElement.setAttribute('visible', 'true')
+  modelElement.setAttribute('position', '0 0 0')
+  modelElement.setAttribute('rotation', '0 0 0')
+  modelElement.setAttribute('scale', '3 3 3')
+  modelElement.innerHTML = `
+    ${modelShapes
+      .map((shape, index) => renderGeneratedShape(shape, index, layout[index].yPosition))
+      .join('')}
+    ${renderOverflowEffects({
+      radius: maxRadius * 20,
+      height: totalHeight * 20,
+      overflowAmount,
+    })}
+  `
+}
+
+export function updatePreviewCameraZoom(cameraElement, zoom) {
+  cameraElement.setAttribute('camera', {
+    active: true,
+    type: 'orthographic',
+    zoom,
+  })
+
+  const camera = cameraElement.components?.camera?.camera
+  if (camera) {
+    camera.zoom = zoom
+    camera.updateProjectionMatrix()
+  }
 }
 
 export function setModelPreviewVisible(modelElement, isVisible) {

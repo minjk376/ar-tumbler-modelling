@@ -99,7 +99,9 @@
         <button id="addFrustumButton" type="button">원뿔대 추가</button>
       </div>
 
-      <ol id="shapeList" class="shape-list" aria-label="생성된 도형 목록"></ol>
+      <div class="shape-list-hint">위 → 아래 순서</div>
+      <ol id="shapeList" class="shape-list" aria-label="위에서 아래로 쌓이는 도형 목록"></ol>
+      <div id="entranceInfo" class="entrance-info" aria-live="polite"></div>
 
       <div class="actions">
         <button id="deleteShapeButton" type="button">선택 삭제</button>
@@ -119,23 +121,12 @@
 
     <section id="overflowControls" class="panel" aria-label="넘침 검증 설정" hidden>
       <label>
-        아래 반지름
-        <input id="bottomRadius" type="number" value="4" min="0" step="0.1" />
-      </label>
-
-      <label>
-        높이
-        <input id="height" type="number" value="8" min="0" step="0.1" />
-      </label>
-
-      <label>
         음료량(mL)
-        <input id="drinkVolume" type="number" value="300" min="0" step="1" />
+        <input id="drinkVolume" type="number" value="355" min="0" step="1" />
       </label>
 
       <div class="actions">
-        <button id="updateCupButton" type="button">업데이트</button>
-        <button id="showVolumeButton" type="button">부피 확인</button>
+        <button id="updateCupButton" type="button">검증</button>
       </div>
 
       <div id="result" aria-live="polite"></div>
@@ -151,9 +142,14 @@
     vr-mode-ui="enabled: false"
     renderer="logarithmicDepthBuffer: true; alpha: true;"
   >
-    <a-entity camera>
-      <a-entity id="modelPreview" position="0 0 -2.4"></a-entity>
+    <a-entity
+      id="previewCamera"
+      camera="type: orthographic; zoom: 1.15"
+      position="0 1.15 3"
+      rotation="-20 0 0">
     </a-entity>
+
+    <a-entity id="modelPreview" position="0 0 0"></a-entity>
 
     <a-marker preset="hiro">
       <a-entity id="cup" scale="3 3 3"></a-entity>

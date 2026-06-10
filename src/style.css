@@ -120,6 +120,13 @@ button:active {
   margin-top: 2px;
 }
 
+.shape-list-hint {
+  margin-top: 2px;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
 .shape-list {
   display: grid;
   gap: 4px;
@@ -132,7 +139,10 @@ button:active {
 
 .shape-list-item {
   width: 100%;
-  justify-content: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   text-align: left;
 }
 
@@ -140,6 +150,34 @@ button:active {
   border-color: #2563eb;
   background: #dbeafe;
   font-weight: 700;
+}
+
+.shape-list-item.entrance {
+  border-color: #059669;
+}
+
+.shape-list-item.entrance > span:last-child {
+  color: #047857;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.entrance-info {
+  border-left: 3px solid #059669;
+  padding: 6px 8px;
+  background: #ecfdf5;
+  color: #064e3b;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.entrance-info small {
+  display: block;
+  margin-top: 2px;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .status,
