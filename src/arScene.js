@@ -1,4 +1,5 @@
 const AR_MODEL_SCALE = 1.2
+const AR_MODEL_Y_OFFSET = -0.02
 
 function getOverflowEffectSizes(overflowAmount) {
   return {
@@ -161,7 +162,7 @@ export function updateMarkerModel(modelElement, shapes, { overflowAmount = 0 } =
   const totalHeight = dimensions.reduce((sum, shape) => sum + shape.height, 0)
 
   modelElement.setAttribute('visible', 'true')
-  modelElement.setAttribute('position', '0 0 0')
+  modelElement.setAttribute('position', `0 ${AR_MODEL_Y_OFFSET} 0`)
   modelElement.setAttribute('rotation', '0 0 0')
   modelElement.setAttribute('scale', `${AR_MODEL_SCALE} ${AR_MODEL_SCALE} ${AR_MODEL_SCALE}`)
   modelElement.innerHTML = `
