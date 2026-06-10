@@ -1,3 +1,5 @@
+const AR_MODEL_SCALE = 1.2
+
 function getOverflowEffectSizes(overflowAmount) {
   return {
     puddleRadius: 0.25 + Math.min(overflowAmount / 500, 0.9),
@@ -161,7 +163,7 @@ export function updateMarkerModel(modelElement, shapes, { overflowAmount = 0 } =
   modelElement.setAttribute('visible', 'true')
   modelElement.setAttribute('position', '0 0 0')
   modelElement.setAttribute('rotation', '0 0 0')
-  modelElement.setAttribute('scale', '3 3 3')
+  modelElement.setAttribute('scale', `${AR_MODEL_SCALE} ${AR_MODEL_SCALE} ${AR_MODEL_SCALE}`)
   modelElement.innerHTML = `
     ${modelShapes
       .map((shape, index) => renderGeneratedShape(shape, index, layout[index].yPosition))
