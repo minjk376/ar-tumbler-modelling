@@ -31,6 +31,7 @@ const elements = {
   swapFrustumRadiiButton: document.getElementById('swapFrustumRadiiButton'),
   addCylinderButton: document.getElementById('addCylinderButton'),
   addFrustumButton: document.getElementById('addFrustumButton'),
+  addConeButton: document.getElementById('addConeButton'),
   shapeList: document.getElementById('shapeList'),
   entranceInfo: document.getElementById('entranceInfo'),
   deleteShapeButton: document.getElementById('deleteShapeButton'),
@@ -49,6 +50,15 @@ const elements = {
   cup: document.getElementById('cup'),
   modelPreview: document.getElementById('modelPreview'),
   previewCamera: document.getElementById('previewCamera'),
+  thinkingSidebar: document.getElementById('thinkingSidebar'),
+  thinkingSidebarToggle: document.getElementById('thinkingSidebarToggle'),
+  thinkingModelMenu: document.getElementById('thinkingModelMenu'),
+  thinkingProgress: document.getElementById('thinkingProgress'),
+  thinkingQuestionPanel: document.getElementById('thinkingQuestionPanel'),
+  thinkingNextStepMessage: document.getElementById('thinkingNextStepMessage'),
+  thinkingPrevButton: document.getElementById('thinkingPrevButton'),
+  thinkingNextButton: document.getElementById('thinkingNextButton'),
+  partCountInputs: Array.from(document.querySelectorAll('input[name="partCount"]')),
 }
 
 const modelTransform = {
@@ -60,6 +70,14 @@ let nextShapeId = 1
 let selectedShapeIndex = 0
 let modelShapes = [createDefaultShape('cylinder')]
 let overflowEffectTimer = null
+const thinkingState = {
+  isOpen: false,
+  selectedMenu: 'model',
+  modelCreationStep: 1,
+  modelCreationTotalSteps: 6,
+  partCount: null,
+  isIntroComplete: false,
+}
 
 function createDefaultShape(type) {
   const id = nextShapeId
@@ -71,6 +89,15 @@ function createDefaultShape(type) {
       type,
       topRadius: 3,
       bottomRadius: 5,
+      height: 8,
+    }
+  }
+
+  if (type === 'cone') {
+    return {
+      id,
+      type,
+      radius: 4,
       height: 8,
     }
   }
@@ -93,6 +120,10 @@ export function calculateShapeVolume(shape) {
     return calculateFrustumVolume(shape.topRadius, shape.bottomRadius, shape.height)
   }
 
+  if (shape.type === 'cone') {
+    return (Math.PI * shape.radius * shape.radius * shape.height) / 3
+  }
+
   return calculateCylinderVolume(shape.radius, shape.height)
 }
 
@@ -101,6 +132,10 @@ export function calculateModelVolume(shapes = modelShapes) {
 }
 
 function getEntranceRadius(shape) {
+  if (shape.type === 'cone') {
+    return 0
+  }
+
   return shape.type === 'frustum' ? shape.topRadius : shape.radius
 }
 
@@ -115,6 +150,7 @@ export function getCurrentEntranceInfo() {
   return {
     index,
     displayNumber: 1,
+    type: shape.type,
     shape,
     radius: getEntranceRadius(shape),
   }
@@ -135,7 +171,15 @@ export function getOverflowVerificationInfo() {
 }
 
 function getShapeName(shape) {
-  return shape.type === 'frustum' ? '원뿔대' : '원기둥'
+  if (shape.type === 'frustum') {
+    return '원뿔대'
+  }
+
+  if (shape.type === 'cone') {
+    return '원뿔'
+  }
+
+  return '원기둥'
 }
 
 function readModelShape() {
@@ -157,6 +201,19 @@ function readModelShape() {
   }
 
   const radius = readNumber(elements.modelRadius)
+
+  if (elements.shapeType.value === 'cone') {
+    const volume = (Math.PI * radius * radius * height) / 3
+
+    return {
+      id: modelShapes[selectedShapeIndex]?.id,
+      type: 'cone',
+      radius,
+      height,
+      volume,
+    }
+  }
+
   const volume = calculateCylinderVolume(radius, height)
 
   return {
@@ -306,7 +363,7 @@ function updateModelPreview({ syncInputs = true } = {}) {
 
   const selectedShape = modelShapes[selectedShapeIndex]
 
-  elements.cylinderInputs.hidden = selectedShape?.type !== 'cylinder'
+  elements.cylinderInputs.hidden = !['cylinder', 'cone'].includes(selectedShape?.type)
   elements.frustumInputs.hidden = selectedShape?.type !== 'frustum'
   elements.swapFrustumRadiiButton.disabled = selectedShape?.type !== 'frustum'
   elements.deleteShapeButton.disabled = modelShapes.length <= 1
@@ -390,6 +447,54 @@ function zoomModel(delta) {
   updateModelPreview()
 }
 
+function renderThinkingSidebar() {
+  elements.thinkingSidebar.classList.toggle('collapsed', !thinkingState.isOpen)
+  elements.thinkingSidebarToggle.setAttribute('aria-expanded', String(thinkingState.isOpen))
+}
+
+function renderThinkingModelFlow() {
+  elements.thinkingProgress.textContent = `모델 생성 ${thinkingState.modelCreationStep}/${thinkingState.modelCreationTotalSteps}`
+  elements.thinkingQuestionPanel.hidden = thinkingState.isIntroComplete
+  elements.thinkingNextStepMessage.hidden = !thinkingState.isIntroComplete
+  elements.thinkingPrevButton.disabled = !thinkingState.isIntroComplete
+  elements.thinkingNextButton.disabled = !thinkingState.partCount
+  elements.thinkingNextButton.textContent = thinkingState.isIntroComplete ? '다음' : '다음'
+
+  elements.partCountInputs.forEach((input) => {
+    input.checked = input.value === thinkingState.partCount
+  })
+}
+
+function toggleThinkingSidebar() {
+  thinkingState.isOpen = !thinkingState.isOpen
+  renderThinkingSidebar()
+}
+
+function selectThinkingModelMenu() {
+  thinkingState.selectedMenu = 'model'
+  elements.thinkingModelMenu.classList.add('active')
+  renderThinkingModelFlow()
+}
+
+function selectPartCount(event) {
+  thinkingState.partCount = event.target.value
+  renderThinkingModelFlow()
+}
+
+function goToThinkingNextStep() {
+  if (!thinkingState.partCount) {
+    return
+  }
+
+  thinkingState.isIntroComplete = true
+  renderThinkingModelFlow()
+}
+
+function goToThinkingPreviousStep() {
+  thinkingState.isIntroComplete = false
+  renderThinkingModelFlow()
+}
+
 elements.modelMode.addEventListener('change', () => setMode(modes.model))
 elements.overflowMode.addEventListener('change', () => setMode(modes.overflow))
 elements.shapeType.addEventListener('change', updateModelPreview)
@@ -400,6 +505,7 @@ elements.modelHeight.addEventListener('input', updateModelPreview)
 elements.swapFrustumRadiiButton.addEventListener('click', swapFrustumRadii)
 elements.addCylinderButton.addEventListener('click', () => addShape('cylinder'))
 elements.addFrustumButton.addEventListener('click', () => addShape('frustum'))
+elements.addConeButton.addEventListener('click', () => addShape('cone'))
 elements.deleteShapeButton.addEventListener('click', deleteSelectedShape)
 elements.moveShapeUpButton.addEventListener('click', () => moveSelectedShape(1))
 elements.moveShapeDownButton.addEventListener('click', () => moveSelectedShape(-1))
@@ -418,4 +524,15 @@ elements.zoomOutButton.addEventListener('click', () => zoomModel(-0.1))
 elements.zoomInButton.addEventListener('click', () => zoomModel(0.1))
 elements.updateCupButton.addEventListener('click', () => updateOverflowVerification({ playEffects: true }))
 elements.drinkVolume.addEventListener('input', updateOverflowVerification)
-window.addEventListener('load', () => setMode(modes.model))
+elements.thinkingSidebarToggle.addEventListener('click', toggleThinkingSidebar)
+elements.thinkingModelMenu.addEventListener('click', selectThinkingModelMenu)
+elements.partCountInputs.forEach((input) => {
+  input.addEventListener('change', selectPartCount)
+})
+elements.thinkingNextButton.addEventListener('click', goToThinkingNextStep)
+elements.thinkingPrevButton.addEventListener('click', goToThinkingPreviousStep)
+window.addEventListener('load', () => {
+  setMode(modes.model)
+  renderThinkingSidebar()
+  renderThinkingModelFlow()
+})

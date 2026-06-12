@@ -65,7 +65,7 @@ function getPreviewMaterial(index = 0) {
   return `color: ${color}; opacity: 0.62; transparent: true; roughness: 0.55; metalness: 0.05`
 }
 
-function getPreviewDimensions({ radius, topRadius, bottomRadius, height }) {
+function getPreviewDimensions({ radius = 0, topRadius = 0, bottomRadius = 0, height = 0 }) {
   const unitScale = 0.08
 
   return {
@@ -85,6 +85,20 @@ function renderGeneratedShape(shape, index, yPosition) {
       <a-cone
         radius-top="${dimensions.topRadius}"
         radius-bottom="${dimensions.bottomRadius}"
+        height="${dimensions.height}"
+        segments-radial="64"
+        material="${material}"
+        position="0 ${yPosition} 0"
+        rotation="0 0 0">
+      </a-cone>
+    `
+  }
+
+  if (shape.type === 'cone') {
+    return `
+      <a-cone
+        radius-top="0"
+        radius-bottom="${dimensions.radius}"
         height="${dimensions.height}"
         segments-radial="64"
         material="${material}"

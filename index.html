@@ -65,6 +65,7 @@
         <select id="shapeType">
           <option value="cylinder">원기둥</option>
           <option value="frustum">원뿔대</option>
+          <option value="cone">원뿔</option>
         </select>
       </label>
 
@@ -97,6 +98,7 @@
       <div class="actions">
         <button id="addCylinderButton" type="button">원기둥 추가</button>
         <button id="addFrustumButton" type="button">원뿔대 추가</button>
+        <button id="addConeButton" type="button">원뿔 추가</button>
       </div>
 
       <div class="shape-list-hint">위 → 아래 순서</div>
@@ -135,6 +137,59 @@
 
     <audio id="overflowSound" src="splash.mp3"></audio>
   </div>
+
+  <aside id="thinkingSidebar" class="thinking-sidebar collapsed" aria-label="AR이랑 같이 생각하기">
+    <button
+      id="thinkingSidebarToggle"
+      class="thinking-sidebar-toggle"
+      type="button"
+      aria-expanded="false"
+      aria-controls="thinkingSidebarBody">
+      🧠
+      <span>AR이랑 같이 생각하기</span>
+    </button>
+
+    <div id="thinkingSidebarBody" class="thinking-sidebar-body">
+      <h2>🧠 AR이랑 같이 생각하기</h2>
+
+      <nav class="thinking-menu" aria-label="사고 지원 메뉴">
+        <button id="thinkingModelMenu" class="active" type="button">모델 생성</button>
+        <button type="button" disabled>계산 <span>준비 중</span></button>
+        <button type="button" disabled>검증 <span>준비 중</span></button>
+        <button type="button" disabled>수정 <span>준비 중</span></button>
+      </nav>
+
+      <section id="thinkingModelFlow" class="thinking-flow" aria-live="polite">
+        <div id="thinkingProgress" class="thinking-progress">모델 생성 1/6</div>
+        <div id="thinkingQuestionPanel">
+          <h3>몇 개의 부분으로 나누면 좋을까요?</h3>
+          <div class="thinking-options" role="radiogroup" aria-label="나눌 부분 수">
+            <label>
+              <input type="radio" name="partCount" value="1" />
+              1개
+            </label>
+            <label>
+              <input type="radio" name="partCount" value="2" />
+              2개
+            </label>
+            <label>
+              <input type="radio" name="partCount" value="3" />
+              3개
+            </label>
+          </div>
+        </div>
+
+        <p id="thinkingNextStepMessage" class="thinking-message" hidden>
+          다음 단계에서는 각 부분의 형태를 관찰해 보겠습니다.
+        </p>
+
+        <div class="thinking-actions">
+          <button id="thinkingPrevButton" type="button">이전</button>
+          <button id="thinkingNextButton" type="button">다음</button>
+        </div>
+      </section>
+    </div>
+  </aside>
 
   <a-scene
     embedded
