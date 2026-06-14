@@ -49,6 +49,7 @@ const elements = {
   overflowSound: document.getElementById('overflowSound'),
   cup: document.getElementById('cup'),
   modelPreview: document.getElementById('modelPreview'),
+  partitionGuides: document.getElementById('partitionGuides'),
   previewCamera: document.getElementById('previewCamera'),
   thinkingSidebar: document.getElementById('thinkingSidebar'),
   thinkingSidebarToggle: document.getElementById('thinkingSidebarToggle'),
@@ -56,9 +57,29 @@ const elements = {
   thinkingProgress: document.getElementById('thinkingProgress'),
   thinkingQuestionPanel: document.getElementById('thinkingQuestionPanel'),
   thinkingNextStepMessage: document.getElementById('thinkingNextStepMessage'),
+  basicShapeQuestionPanel: document.getElementById('basicShapeQuestionPanel'),
+  basicShapeNoMessage: document.getElementById('basicShapeNoMessage'),
+  backToPartitionButton: document.getElementById('backToPartitionButton'),
+  sideViewQuestionPanel: document.getElementById('sideViewQuestionPanel'),
+  baseShapeQuestionPanel: document.getElementById('baseShapeQuestionPanel'),
+  thinkingPartitionPrompt: document.getElementById('thinkingPartitionPrompt'),
   thinkingPrevButton: document.getElementById('thinkingPrevButton'),
   thinkingNextButton: document.getElementById('thinkingNextButton'),
+  partitionSliders: document.getElementById('partitionSliders'),
   partCountInputs: Array.from(document.querySelectorAll('input[name="partCount"]')),
+  basicShapeAnswerInputs: Array.from(document.querySelectorAll('input[name="basicShapeAnswer"]')),
+  sideViewShapeInputs: Array.from(document.querySelectorAll('input[name="sideViewShape"]')),
+  baseShapeFeatureInputs: Array.from(document.querySelectorAll('input[name="baseShapeFeature"]')),
+}
+
+const partitionGuide = {
+  minPosition: 8,
+  maxPosition: 92,
+  minGap: 12,
+  height: 1.15,
+  width: 1.25,
+  red: '#ef4444',
+  orange: '#f97316',
 }
 
 const modelTransform = {
@@ -68,15 +89,19 @@ const modelTransform = {
 
 let nextShapeId = 1
 let selectedShapeIndex = 0
-let modelShapes = [createDefaultShape('cylinder')]
+let modelShapes = []
 let overflowEffectTimer = null
+let activePartitionDrag = null
 const thinkingState = {
   isOpen: false,
   selectedMenu: 'model',
   modelCreationStep: 1,
   modelCreationTotalSteps: 6,
   partCount: null,
-  isIntroComplete: false,
+  partitionPositions: [],
+  firstPartBasicShapeAnswer: null,
+  firstPartSideViewShape: null,
+  firstPartBaseShapeFeature: null,
 }
 
 function createDefaultShape(type) {
@@ -166,7 +191,7 @@ export function getOverflowVerificationInfo() {
     drinkVolume,
     totalVolume,
     entrance,
-    overflows: drinkVolume > totalVolume,
+    overflows: modelShapes.length > 0 && drinkVolume > totalVolume,
   }
 }
 
@@ -293,6 +318,16 @@ function renderEntranceInfo() {
 }
 
 function renderModelVolume() {
+  if (modelShapes.length === 0) {
+    elements.modelVolumeInfo.innerHTML = `
+      <b>도형별 부피</b><br>
+      -<br>
+      <hr>
+      <b>전체 부피: 0 mL</b>
+    `
+    return
+  }
+
   const volumeRows = modelShapes
     .map((shape, index) => {
       const volume = calculateShapeVolume(shape)
@@ -312,6 +347,18 @@ function renderModelVolume() {
 
 function renderOverflowVerification() {
   const verification = getOverflowVerificationInfo()
+
+  if (!verification.entrance) {
+    elements.result.innerHTML = '<div class="safe">모델 없음</div>'
+    elements.volumeInfo.hidden = false
+    elements.volumeInfo.innerHTML = `
+      <b>총 부피</b>: 0 mL<br>
+      <b>음료량</b>: ${verification.drinkVolume.toFixed(1)} mL<br>
+      모델을 먼저 생성해 주세요.
+    `
+    return
+  }
+
   const resultClass = verification.overflows ? 'overflow' : 'safe'
   const resultText = verification.overflows ? '넘침' : '담을 수 있음'
 
@@ -427,6 +474,7 @@ function setMode(mode) {
   elements.overflowControls.hidden = isModelMode
   setModelPreviewVisible(elements.modelPreview, isModelMode)
   setOverflowSceneVisible(elements.cup, !isModelMode)
+  renderPartitionStep()
 
   if (isModelMode) {
     updateModelPreview()
@@ -452,17 +500,230 @@ function renderThinkingSidebar() {
   elements.thinkingSidebarToggle.setAttribute('aria-expanded', String(thinkingState.isOpen))
 }
 
+function getPartitionLineY(position) {
+  return ((position - 50) / 100) * partitionGuide.height
+}
+
+function getPartitionDefaults(partCount) {
+  if (partCount === '3') {
+    return [38, 62]
+  }
+
+  if (partCount === '2') {
+    return [50]
+  }
+
+  return []
+}
+
+function getPartitionColor(index) {
+  if (thinkingState.partitionPositions.length === 2 && index === 0) {
+    return partitionGuide.orange
+  }
+
+  return partitionGuide.red
+}
+
+function getPartitionPercent(position) {
+  const range = partitionGuide.maxPosition - partitionGuide.minPosition
+
+  return ((position - partitionGuide.minPosition) / range) * 100
+}
+
+function getPartitionSliderItems() {
+  if (thinkingState.partitionPositions.length === 2) {
+    return [
+      { index: 1, label: '🔴 위쪽 선' },
+      { index: 0, label: '🟠 아래쪽 선' },
+    ]
+  }
+
+  return thinkingState.partitionPositions.map((_, index) => ({
+    index,
+    label: '🔴 분할선',
+  }))
+}
+
+function normalizePartitionPositions(changedIndex = 0) {
+  const positions = thinkingState.partitionPositions
+
+  if (positions.length !== 2) {
+    thinkingState.partitionPositions = positions.map((position) => (
+      Math.min(Math.max(position, partitionGuide.minPosition), partitionGuide.maxPosition)
+    ))
+    return
+  }
+
+  let [lower, upper] = positions
+  lower = Math.min(Math.max(lower, partitionGuide.minPosition), partitionGuide.maxPosition)
+  upper = Math.min(Math.max(upper, partitionGuide.minPosition), partitionGuide.maxPosition)
+
+  if (upper - lower < partitionGuide.minGap) {
+    if (changedIndex === 0) {
+      lower = Math.min(lower, partitionGuide.maxPosition - partitionGuide.minGap)
+      upper = lower + partitionGuide.minGap
+    } else {
+      upper = Math.max(upper, partitionGuide.minPosition + partitionGuide.minGap)
+      lower = upper - partitionGuide.minGap
+    }
+  }
+
+  thinkingState.partitionPositions = [lower, upper]
+}
+
+function setPartitionPosition(index, position) {
+  thinkingState.partitionPositions[index] = position
+  normalizePartitionPositions(index)
+  renderPartitionGuides()
+  renderPartitionSliders()
+}
+
+function getPointerPartitionPosition(clientY, rect) {
+  const ratio = Math.min(Math.max((rect.bottom - clientY) / rect.height, 0), 1)
+  const range = partitionGuide.maxPosition - partitionGuide.minPosition
+
+  return Math.round(partitionGuide.minPosition + ratio * range)
+}
+
+function isPartitionAdjustmentStep() {
+  return thinkingState.modelCreationStep === 2
+}
+
+function shouldShowPartitionGuides() {
+  return elements.modelMode.checked &&
+    thinkingState.modelCreationStep >= 2 &&
+    thinkingState.modelCreationStep <= thinkingState.modelCreationTotalSteps &&
+    thinkingState.partitionPositions.length > 0
+}
+
+function renderPartitionGuides() {
+  const isVisible = shouldShowPartitionGuides()
+
+  elements.partitionGuides.setAttribute('visible', isVisible ? 'true' : 'false')
+
+  if (!isVisible) {
+    elements.partitionGuides.innerHTML = ''
+    return
+  }
+
+  while (elements.partitionGuides.children.length > thinkingState.partitionPositions.length) {
+    elements.partitionGuides.lastElementChild.remove()
+  }
+
+  thinkingState.partitionPositions.forEach((position, index) => {
+    let guide = elements.partitionGuides.children[index]
+    const nextPosition = `0 ${getPartitionLineY(position)} 0.02`
+
+    if (!guide) {
+      guide = document.createElement('a-box')
+      guide.setAttribute('depth', '0.018')
+      guide.setAttribute('height', '0.035')
+      guide.setAttribute('width', partitionGuide.width)
+      guide.setAttribute('position', nextPosition)
+      elements.partitionGuides.appendChild(guide)
+    } else {
+      guide.setAttribute('animation__move', {
+        property: 'position',
+        to: nextPosition,
+        dur: 100,
+        easing: 'easeOutQuad',
+      })
+    }
+
+    guide.setAttribute('color', getPartitionColor(index))
+  })
+}
+
+function renderPartitionSliders() {
+  if (!isPartitionAdjustmentStep()) {
+    elements.partitionSliders.innerHTML = ''
+    return
+  }
+
+  elements.partitionSliders.innerHTML = getPartitionSliderItems()
+    .map(({ index, label }) => `
+      <label
+        class="partition-slider-label"
+        style="--partition-color: ${getPartitionColor(index)}">
+        <span>${label}</span>
+        <div
+          class="partition-slider-control"
+          role="slider"
+          tabindex="0"
+          aria-label="${label} 위치"
+          aria-valuemin="${partitionGuide.minPosition}"
+          aria-valuemax="${partitionGuide.maxPosition}"
+          aria-valuenow="${thinkingState.partitionPositions[index]}"
+          data-partition-index="${index}"
+          style="--partition-percent: ${getPartitionPercent(thinkingState.partitionPositions[index])}">
+          <span class="partition-slider-track"></span>
+          <span class="partition-slider-thumb"></span>
+        </div>
+      </label>
+    `)
+    .join('')
+}
+
+function renderPartitionStep() {
+  const isPartitionStep = isPartitionAdjustmentStep()
+
+  elements.thinkingPartitionPrompt.hidden = !isPartitionStep
+  renderPartitionGuides()
+  renderPartitionSliders()
+}
+
+function renderBasicShapeQuestion() {
+  const isQuestionStep = thinkingState.modelCreationStep === 3
+  const isNoSelected = thinkingState.firstPartBasicShapeAnswer === 'no'
+
+  elements.basicShapeQuestionPanel.hidden = !isQuestionStep
+  elements.basicShapeNoMessage.hidden = !isQuestionStep || !isNoSelected
+  elements.backToPartitionButton.hidden = !isQuestionStep || !isNoSelected
+
+  elements.basicShapeAnswerInputs.forEach((input) => {
+    input.checked = input.value === thinkingState.firstPartBasicShapeAnswer
+  })
+}
+
+function renderSideViewQuestion() {
+  const isQuestionStep = thinkingState.modelCreationStep === 4
+
+  elements.sideViewQuestionPanel.hidden = !isQuestionStep
+  elements.sideViewShapeInputs.forEach((input) => {
+    input.checked = input.value === thinkingState.firstPartSideViewShape
+  })
+}
+
+function renderBaseShapeQuestion() {
+  const isQuestionStep = thinkingState.modelCreationStep === 5
+
+  elements.baseShapeQuestionPanel.hidden = !isQuestionStep
+  elements.baseShapeFeatureInputs.forEach((input) => {
+    input.checked = input.value === thinkingState.firstPartBaseShapeFeature
+  })
+}
+
 function renderThinkingModelFlow() {
   elements.thinkingProgress.textContent = `모델 생성 ${thinkingState.modelCreationStep}/${thinkingState.modelCreationTotalSteps}`
-  elements.thinkingQuestionPanel.hidden = thinkingState.isIntroComplete
-  elements.thinkingNextStepMessage.hidden = !thinkingState.isIntroComplete
-  elements.thinkingPrevButton.disabled = !thinkingState.isIntroComplete
-  elements.thinkingNextButton.disabled = !thinkingState.partCount
-  elements.thinkingNextButton.textContent = thinkingState.isIntroComplete ? '다음' : '다음'
+  elements.thinkingQuestionPanel.hidden = thinkingState.modelCreationStep !== 1
+  elements.thinkingNextStepMessage.hidden = true
+  elements.thinkingPrevButton.disabled = thinkingState.modelCreationStep === 1
+  elements.thinkingNextButton.disabled = (
+    (thinkingState.modelCreationStep === 1 && !thinkingState.partCount) ||
+    (thinkingState.modelCreationStep === 3 && thinkingState.firstPartBasicShapeAnswer !== 'yes') ||
+    (thinkingState.modelCreationStep === 4 && !thinkingState.firstPartSideViewShape) ||
+    (thinkingState.modelCreationStep === 5 && !thinkingState.firstPartBaseShapeFeature)
+  )
+  elements.thinkingNextButton.textContent = '다음'
 
   elements.partCountInputs.forEach((input) => {
     input.checked = input.value === thinkingState.partCount
   })
+
+  renderPartitionStep()
+  renderBasicShapeQuestion()
+  renderSideViewQuestion()
+  renderBaseShapeQuestion()
 }
 
 function toggleThinkingSidebar() {
@@ -478,6 +739,28 @@ function selectThinkingModelMenu() {
 
 function selectPartCount(event) {
   thinkingState.partCount = event.target.value
+  thinkingState.partitionPositions = getPartitionDefaults(thinkingState.partCount)
+  thinkingState.firstPartBasicShapeAnswer = null
+  thinkingState.firstPartSideViewShape = null
+  thinkingState.firstPartBaseShapeFeature = null
+  renderThinkingModelFlow()
+}
+
+function selectBasicShapeAnswer(event) {
+  thinkingState.firstPartBasicShapeAnswer = event.target.value
+  thinkingState.firstPartSideViewShape = null
+  thinkingState.firstPartBaseShapeFeature = null
+  renderThinkingModelFlow()
+}
+
+function selectSideViewShape(event) {
+  thinkingState.firstPartSideViewShape = event.target.value
+  thinkingState.firstPartBaseShapeFeature = null
+  renderThinkingModelFlow()
+}
+
+function selectBaseShapeFeature(event) {
+  thinkingState.firstPartBaseShapeFeature = event.target.value
   renderThinkingModelFlow()
 }
 
@@ -486,13 +769,117 @@ function goToThinkingNextStep() {
     return
   }
 
-  thinkingState.isIntroComplete = true
+  if (thinkingState.modelCreationStep === 1) {
+    thinkingState.modelCreationStep = thinkingState.partCount === '1' ? 3 : 2
+  } else if (thinkingState.modelCreationStep === 2) {
+    thinkingState.modelCreationStep = 3
+  } else if (
+    thinkingState.modelCreationStep === 3 &&
+    thinkingState.firstPartBasicShapeAnswer === 'yes'
+  ) {
+    thinkingState.modelCreationStep = 4
+  } else if (
+    thinkingState.modelCreationStep === 4 &&
+    thinkingState.firstPartSideViewShape
+  ) {
+    thinkingState.modelCreationStep = 5
+  } else if (
+    thinkingState.modelCreationStep === 5 &&
+    thinkingState.firstPartBaseShapeFeature
+  ) {
+    return
+  }
+
   renderThinkingModelFlow()
 }
 
 function goToThinkingPreviousStep() {
-  thinkingState.isIntroComplete = false
+  if (thinkingState.modelCreationStep === 5) {
+    thinkingState.modelCreationStep = 4
+  } else if (thinkingState.modelCreationStep === 4) {
+    thinkingState.modelCreationStep = 3
+  } else if (thinkingState.modelCreationStep === 3 && thinkingState.partCount !== '1') {
+    thinkingState.modelCreationStep = 2
+  } else {
+    thinkingState.modelCreationStep = 1
+  }
+
   renderThinkingModelFlow()
+}
+
+function goBackToPartitionStep() {
+  thinkingState.modelCreationStep = 2
+  renderThinkingModelFlow()
+}
+
+function updatePartitionPositionFromPointer(event) {
+  if (!activePartitionDrag) {
+    return
+  }
+
+  event.preventDefault()
+  setPartitionPosition(
+    activePartitionDrag.index,
+    getPointerPartitionPosition(event.clientY, activePartitionDrag.rect),
+  )
+}
+
+function startPartitionDrag(event) {
+  const slider = event.target.closest('.partition-slider-control')
+
+  if (!slider) {
+    return
+  }
+
+  event.preventDefault()
+  activePartitionDrag = {
+    index: parseInt(slider.dataset.partitionIndex, 10),
+    rect: slider.getBoundingClientRect(),
+  }
+  slider.setPointerCapture?.(event.pointerId)
+  updatePartitionPositionFromPointer(event)
+}
+
+function stopPartitionDrag() {
+  activePartitionDrag = null
+}
+
+function adjustPartitionWithKeyboard(event) {
+  const slider = event.target.closest('.partition-slider-control')
+
+  if (!slider) {
+    return
+  }
+
+  const index = parseInt(slider.dataset.partitionIndex, 10)
+  const currentPosition = thinkingState.partitionPositions[index]
+  const keySteps = {
+    ArrowUp: 1,
+    ArrowRight: 1,
+    ArrowDown: -1,
+    ArrowLeft: -1,
+    PageUp: 5,
+    PageDown: -5,
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault()
+    setPartitionPosition(index, partitionGuide.minPosition)
+    return
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault()
+    setPartitionPosition(index, partitionGuide.maxPosition)
+    return
+  }
+
+  if (!keySteps[event.key]) {
+    return
+  }
+
+  event.preventDefault()
+  setPartitionPosition(index, currentPosition + keySteps[event.key])
 }
 
 elements.modelMode.addEventListener('change', () => setMode(modes.model))
@@ -529,6 +916,21 @@ elements.thinkingModelMenu.addEventListener('click', selectThinkingModelMenu)
 elements.partCountInputs.forEach((input) => {
   input.addEventListener('change', selectPartCount)
 })
+elements.basicShapeAnswerInputs.forEach((input) => {
+  input.addEventListener('change', selectBasicShapeAnswer)
+})
+elements.sideViewShapeInputs.forEach((input) => {
+  input.addEventListener('change', selectSideViewShape)
+})
+elements.baseShapeFeatureInputs.forEach((input) => {
+  input.addEventListener('change', selectBaseShapeFeature)
+})
+elements.backToPartitionButton.addEventListener('click', goBackToPartitionStep)
+elements.partitionSliders.addEventListener('pointerdown', startPartitionDrag)
+elements.partitionSliders.addEventListener('keydown', adjustPartitionWithKeyboard)
+window.addEventListener('pointermove', updatePartitionPositionFromPointer)
+window.addEventListener('pointerup', stopPartitionDrag)
+window.addEventListener('pointercancel', stopPartitionDrag)
 elements.thinkingNextButton.addEventListener('click', goToThinkingNextStep)
 elements.thinkingPrevButton.addEventListener('click', goToThinkingPreviousStep)
 window.addEventListener('load', () => {
