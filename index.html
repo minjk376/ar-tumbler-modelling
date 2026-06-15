@@ -184,7 +184,7 @@
         </p>
 
         <div id="basicShapeQuestionPanel" class="basic-shape-question" hidden>
-          <h3>아래쪽 첫 번째 부분을 하나의 기본 입체도형으로 표현할 수 있을까요?</h3>
+          <h3 id="basicShapeQuestionTitle">아래쪽 부분을 하나의 기본 입체도형으로 표현할 수 있을까요?</h3>
           <div class="thinking-options" role="radiogroup" aria-label="기본 입체도형 표현 가능 여부">
             <label>
               <input type="radio" name="basicShapeAnswer" value="yes" />
@@ -202,7 +202,7 @@
         </div>
 
         <div id="sideViewQuestionPanel" class="side-view-question" hidden>
-          <h3>아래쪽 첫 번째 부분을 옆에서 보면 어떤 모양에 가장 가까울까요?</h3>
+          <h3 id="sideViewQuestionTitle">아래쪽 부분을 옆에서 보면 어떤 모양에 가장 가까울까요?</h3>
           <div class="thinking-options" role="radiogroup" aria-label="옆에서 본 모양">
             <label>
               <input type="radio" name="sideViewShape" value="rectangle" />
@@ -220,7 +220,7 @@
         </div>
 
         <div id="baseShapeQuestionPanel" class="base-shape-question" hidden>
-          <h3>아래쪽 첫 번째 부분의 위쪽 밑면과 아래쪽 밑면은 어떠한가요?</h3>
+          <h3 id="baseShapeQuestionTitle">아래쪽 부분의 위쪽 밑면과 아래쪽 밑면은 어떠한가요?</h3>
           <div class="thinking-options" role="radiogroup" aria-label="위쪽과 아래쪽 밑면 특징">
             <label>
               <input type="radio" name="baseShapeFeature" value="congruent-circles" />
@@ -235,6 +235,25 @@
               밑면이 하나의 원이다.
             </label>
           </div>
+        </div>
+
+        <div id="solidShapeQuestionPanel" class="solid-shape-question" hidden>
+          <h3 id="solidShapeQuestionTitle">아래쪽 부분을 어떤 기본 입체도형으로 표현하는 것이 가장 적절할까요?</h3>
+          <div class="thinking-options" role="radiogroup" aria-label="기본 입체도형 선택">
+            <label>
+              <input type="radio" name="solidShapeChoice" value="cylinder" />
+              원기둥
+            </label>
+            <label>
+              <input type="radio" name="solidShapeChoice" value="frustum" />
+              원뿔대
+            </label>
+            <label>
+              <input type="radio" name="solidShapeChoice" value="cone" />
+              원뿔
+            </label>
+          </div>
+          <p id="solidShapeReasonMessage" class="thinking-message" hidden></p>
         </div>
 
         <div id="thinkingPartitionPrompt" class="thinking-partition-prompt" hidden>

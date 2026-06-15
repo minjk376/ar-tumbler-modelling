@@ -209,7 +209,8 @@ canvas,
 
 .basic-shape-question,
 .side-view-question,
-.base-shape-question {
+.base-shape-question,
+.solid-shape-question {
   display: grid;
   gap: 10px;
 }

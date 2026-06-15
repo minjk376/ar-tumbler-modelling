@@ -58,10 +58,16 @@ const elements = {
   thinkingQuestionPanel: document.getElementById('thinkingQuestionPanel'),
   thinkingNextStepMessage: document.getElementById('thinkingNextStepMessage'),
   basicShapeQuestionPanel: document.getElementById('basicShapeQuestionPanel'),
+  basicShapeQuestionTitle: document.getElementById('basicShapeQuestionTitle'),
   basicShapeNoMessage: document.getElementById('basicShapeNoMessage'),
   backToPartitionButton: document.getElementById('backToPartitionButton'),
   sideViewQuestionPanel: document.getElementById('sideViewQuestionPanel'),
+  sideViewQuestionTitle: document.getElementById('sideViewQuestionTitle'),
   baseShapeQuestionPanel: document.getElementById('baseShapeQuestionPanel'),
+  baseShapeQuestionTitle: document.getElementById('baseShapeQuestionTitle'),
+  solidShapeQuestionPanel: document.getElementById('solidShapeQuestionPanel'),
+  solidShapeQuestionTitle: document.getElementById('solidShapeQuestionTitle'),
+  solidShapeReasonMessage: document.getElementById('solidShapeReasonMessage'),
   thinkingPartitionPrompt: document.getElementById('thinkingPartitionPrompt'),
   thinkingPrevButton: document.getElementById('thinkingPrevButton'),
   thinkingNextButton: document.getElementById('thinkingNextButton'),
@@ -70,6 +76,7 @@ const elements = {
   basicShapeAnswerInputs: Array.from(document.querySelectorAll('input[name="basicShapeAnswer"]')),
   sideViewShapeInputs: Array.from(document.querySelectorAll('input[name="sideViewShape"]')),
   baseShapeFeatureInputs: Array.from(document.querySelectorAll('input[name="baseShapeFeature"]')),
+  solidShapeChoiceInputs: Array.from(document.querySelectorAll('input[name="solidShapeChoice"]')),
 }
 
 const partitionGuide = {
@@ -98,10 +105,25 @@ const thinkingState = {
   modelCreationStep: 1,
   modelCreationTotalSteps: 6,
   partCount: null,
+  explorationParts: [],
+  currentPartIndex: 0,
   partitionPositions: [],
   firstPartBasicShapeAnswer: null,
   firstPartSideViewShape: null,
   firstPartBaseShapeFeature: null,
+  firstPartSolidShapeChoice: null,
+}
+
+const solidShapeReasonDescriptions = {
+  cylinder: '옆에서 본 모양이 직사각형이고, 두 밑면이 합동인 원인 입체도형으로 표현하는 것이 적절합니다.',
+  frustum: '옆에서 본 모양이 사다리꼴이고, 두 밑면이 크기가 다른 원인 입체도형으로 표현하는 것이 적절합니다.',
+  cone: '옆에서 본 모양이 삼각형이고, 밑면이 하나의 원인 입체도형으로 표현하는 것이 적절합니다.',
+}
+
+const explorationPartsByCount = {
+  1: ['전체'],
+  2: ['아래쪽 부분', '위쪽 부분'],
+  3: ['아래쪽 부분', '가운데 부분', '위쪽 부분'],
 }
 
 function createDefaultShape(type) {
@@ -516,6 +538,50 @@ function getPartitionDefaults(partCount) {
   return []
 }
 
+function getExplorationParts(partCount) {
+  return explorationPartsByCount[partCount] || []
+}
+
+function resetExplorationParts(partCount) {
+  thinkingState.explorationParts = getExplorationParts(partCount)
+  thinkingState.currentPartIndex = 0
+}
+
+function getCurrentPartName() {
+  return thinkingState.explorationParts[thinkingState.currentPartIndex] || '이 부분'
+}
+
+function hasFinalConsonant(text) {
+  const lastCharCode = text.charCodeAt(text.length - 1)
+  const firstHangulCode = '가'.charCodeAt(0)
+  const lastHangulCode = '힣'.charCodeAt(0)
+
+  if (lastCharCode < firstHangulCode || lastCharCode > lastHangulCode) {
+    return false
+  }
+
+  return (lastCharCode - firstHangulCode) % 28 !== 0
+}
+
+function getObjectParticle(text) {
+  return hasFinalConsonant(text) ? '을' : '를'
+}
+
+function getTopicParticle(text) {
+  return hasFinalConsonant(text) ? '은' : '는'
+}
+
+function getSolidShapeReason(shapeChoice) {
+  const description = solidShapeReasonDescriptions[shapeChoice]
+
+  if (!description) {
+    return ''
+  }
+
+  const partName = getCurrentPartName()
+  return `${partName}${getTopicParticle(partName)} ${description}`
+}
+
 function getPartitionColor(index) {
   if (thinkingState.partitionPositions.length === 2 && index === 0) {
     return partitionGuide.orange
@@ -675,8 +741,11 @@ function renderPartitionStep() {
 function renderBasicShapeQuestion() {
   const isQuestionStep = thinkingState.modelCreationStep === 3
   const isNoSelected = thinkingState.firstPartBasicShapeAnswer === 'no'
+  const partName = getCurrentPartName()
+  const objectParticle = getObjectParticle(partName)
 
   elements.basicShapeQuestionPanel.hidden = !isQuestionStep
+  elements.basicShapeQuestionTitle.textContent = `${partName}${objectParticle} 하나의 기본 입체도형으로 표현할 수 있을까요?`
   elements.basicShapeNoMessage.hidden = !isQuestionStep || !isNoSelected
   elements.backToPartitionButton.hidden = !isQuestionStep || !isNoSelected
 
@@ -687,8 +756,11 @@ function renderBasicShapeQuestion() {
 
 function renderSideViewQuestion() {
   const isQuestionStep = thinkingState.modelCreationStep === 4
+  const partName = getCurrentPartName()
+  const objectParticle = getObjectParticle(partName)
 
   elements.sideViewQuestionPanel.hidden = !isQuestionStep
+  elements.sideViewQuestionTitle.textContent = `${partName}${objectParticle} 옆에서 보면 어떤 모양에 가장 가까울까요?`
   elements.sideViewShapeInputs.forEach((input) => {
     input.checked = input.value === thinkingState.firstPartSideViewShape
   })
@@ -696,10 +768,27 @@ function renderSideViewQuestion() {
 
 function renderBaseShapeQuestion() {
   const isQuestionStep = thinkingState.modelCreationStep === 5
+  const partName = getCurrentPartName()
 
   elements.baseShapeQuestionPanel.hidden = !isQuestionStep
+  elements.baseShapeQuestionTitle.textContent = `${partName}의 위쪽 밑면과 아래쪽 밑면은 어떠한가요?`
   elements.baseShapeFeatureInputs.forEach((input) => {
     input.checked = input.value === thinkingState.firstPartBaseShapeFeature
+  })
+}
+
+function renderSolidShapeQuestion() {
+  const isQuestionStep = thinkingState.modelCreationStep === 6
+  const reason = getSolidShapeReason(thinkingState.firstPartSolidShapeChoice)
+  const partName = getCurrentPartName()
+  const objectParticle = getObjectParticle(partName)
+
+  elements.solidShapeQuestionPanel.hidden = !isQuestionStep
+  elements.solidShapeQuestionTitle.textContent = `${partName}${objectParticle} 어떤 기본 입체도형으로 표현하는 것이 가장 적절할까요?`
+  elements.solidShapeReasonMessage.hidden = !isQuestionStep || !reason
+  elements.solidShapeReasonMessage.textContent = reason
+  elements.solidShapeChoiceInputs.forEach((input) => {
+    input.checked = input.value === thinkingState.firstPartSolidShapeChoice
   })
 }
 
@@ -712,7 +801,8 @@ function renderThinkingModelFlow() {
     (thinkingState.modelCreationStep === 1 && !thinkingState.partCount) ||
     (thinkingState.modelCreationStep === 3 && thinkingState.firstPartBasicShapeAnswer !== 'yes') ||
     (thinkingState.modelCreationStep === 4 && !thinkingState.firstPartSideViewShape) ||
-    (thinkingState.modelCreationStep === 5 && !thinkingState.firstPartBaseShapeFeature)
+    (thinkingState.modelCreationStep === 5 && !thinkingState.firstPartBaseShapeFeature) ||
+    (thinkingState.modelCreationStep === 6 && !thinkingState.firstPartSolidShapeChoice)
   )
   elements.thinkingNextButton.textContent = '다음'
 
@@ -724,6 +814,7 @@ function renderThinkingModelFlow() {
   renderBasicShapeQuestion()
   renderSideViewQuestion()
   renderBaseShapeQuestion()
+  renderSolidShapeQuestion()
 }
 
 function toggleThinkingSidebar() {
@@ -739,10 +830,12 @@ function selectThinkingModelMenu() {
 
 function selectPartCount(event) {
   thinkingState.partCount = event.target.value
+  resetExplorationParts(thinkingState.partCount)
   thinkingState.partitionPositions = getPartitionDefaults(thinkingState.partCount)
   thinkingState.firstPartBasicShapeAnswer = null
   thinkingState.firstPartSideViewShape = null
   thinkingState.firstPartBaseShapeFeature = null
+  thinkingState.firstPartSolidShapeChoice = null
   renderThinkingModelFlow()
 }
 
@@ -750,17 +843,25 @@ function selectBasicShapeAnswer(event) {
   thinkingState.firstPartBasicShapeAnswer = event.target.value
   thinkingState.firstPartSideViewShape = null
   thinkingState.firstPartBaseShapeFeature = null
+  thinkingState.firstPartSolidShapeChoice = null
   renderThinkingModelFlow()
 }
 
 function selectSideViewShape(event) {
   thinkingState.firstPartSideViewShape = event.target.value
   thinkingState.firstPartBaseShapeFeature = null
+  thinkingState.firstPartSolidShapeChoice = null
   renderThinkingModelFlow()
 }
 
 function selectBaseShapeFeature(event) {
   thinkingState.firstPartBaseShapeFeature = event.target.value
+  thinkingState.firstPartSolidShapeChoice = null
+  renderThinkingModelFlow()
+}
+
+function selectSolidShapeChoice(event) {
+  thinkingState.firstPartSolidShapeChoice = event.target.value
   renderThinkingModelFlow()
 }
 
@@ -787,6 +888,11 @@ function goToThinkingNextStep() {
     thinkingState.modelCreationStep === 5 &&
     thinkingState.firstPartBaseShapeFeature
   ) {
+    thinkingState.modelCreationStep = 6
+  } else if (
+    thinkingState.modelCreationStep === 6 &&
+    thinkingState.firstPartSolidShapeChoice
+  ) {
     return
   }
 
@@ -794,7 +900,9 @@ function goToThinkingNextStep() {
 }
 
 function goToThinkingPreviousStep() {
-  if (thinkingState.modelCreationStep === 5) {
+  if (thinkingState.modelCreationStep === 6) {
+    thinkingState.modelCreationStep = 5
+  } else if (thinkingState.modelCreationStep === 5) {
     thinkingState.modelCreationStep = 4
   } else if (thinkingState.modelCreationStep === 4) {
     thinkingState.modelCreationStep = 3
@@ -924,6 +1032,9 @@ elements.sideViewShapeInputs.forEach((input) => {
 })
 elements.baseShapeFeatureInputs.forEach((input) => {
   input.addEventListener('change', selectBaseShapeFeature)
+})
+elements.solidShapeChoiceInputs.forEach((input) => {
+  input.addEventListener('change', selectSolidShapeChoice)
 })
 elements.backToPartitionButton.addEventListener('click', goBackToPartitionStep)
 elements.partitionSliders.addEventListener('pointerdown', startPartitionDrag)
