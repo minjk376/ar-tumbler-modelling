@@ -94,7 +94,10 @@ const partitionGuide = {
   maxPosition: 92,
   minGap: 12,
   height: 1.15,
-  width: 1.25,
+  width: 1.45,
+  lineHeight: 0.055,
+  depth: 0.035,
+  zOffset: 0.08,
   red: '#ef4444',
   orange: '#f97316',
 }
@@ -152,7 +155,7 @@ const expectedSolidShapeByObservation = {
   'triangle|one-circle': 'cone',
 }
 
-const realityModelTotalHeight = 12
+const DEFAULT_GENERATED_MODEL_HEIGHT = 24
 
 const explorationPartsByCount = {
   1: ['전체'],
@@ -843,16 +846,14 @@ function renderPartitionGuides() {
 
   thinkingState.partitionPositions.forEach((position, index) => {
     let guide = elements.partitionGuides.children[index]
-    const nextPosition = `0 ${getPartitionLineY(position)} 0.02`
+    const nextPosition = `0 ${getPartitionLineY(position)} ${partitionGuide.zOffset}`
+    const guideColor = getPartitionColor(index)
 
     if (!guide) {
       guide = document.createElement('a-box')
-      guide.setAttribute('depth', '0.018')
-      guide.setAttribute('height', '0.035')
-      guide.setAttribute('width', partitionGuide.width)
-      guide.setAttribute('position', nextPosition)
       elements.partitionGuides.appendChild(guide)
     } else {
+      guide.removeAttribute('animation__fade')
       guide.setAttribute('animation__move', {
         property: 'position',
         to: nextPosition,
@@ -861,11 +862,17 @@ function renderPartitionGuides() {
       })
     }
 
-    guide.setAttribute('color', getPartitionColor(index))
+    guide.setAttribute('visible', 'true')
+    guide.setAttribute('depth', partitionGuide.depth)
+    guide.setAttribute('height', partitionGuide.lineHeight)
+    guide.setAttribute('width', partitionGuide.width)
+    guide.setAttribute('position', nextPosition)
+    guide.setAttribute('color', guideColor)
     guide.setAttribute('material', {
-      color: getPartitionColor(index),
+      color: guideColor,
       opacity: 1,
       transparent: true,
+      shader: 'flat',
     })
   })
 }
@@ -1002,7 +1009,7 @@ function getRealityModelHeightEstimates() {
   const partCount = thinkingState.explorationParts.length || 1
 
   if (partCount === 1) {
-    return [realityModelTotalHeight]
+    return [DEFAULT_GENERATED_MODEL_HEIGHT]
   }
 
   const fallbackPositions = getPartitionDefaults(String(partCount))
@@ -1015,9 +1022,9 @@ function getRealityModelHeightEstimates() {
 
   return boundaries.slice(1).map((boundary, index) => {
     const previousBoundary = boundaries[index]
-    const height = ((boundary - previousBoundary) / 100) * realityModelTotalHeight
+    const height = ((boundary - previousBoundary) / 100) * DEFAULT_GENERATED_MODEL_HEIGHT
 
-    return Math.max(Number(height.toFixed(1)), 0.5)
+    return Number(height.toFixed(1))
   })
 }
 
@@ -1037,7 +1044,7 @@ function createRealityModelFromDecisions() {
 
   nextShapeId = 1
   modelShapes = thinkingState.partDecisions.map((decision, index) => (
-    createRealityModelShape(decision, heights[index] ?? realityModelTotalHeight)
+    createRealityModelShape(decision, heights[index] ?? DEFAULT_GENERATED_MODEL_HEIGHT)
   ))
   selectedShapeIndex = Math.max(modelShapes.length - 1, 0)
   loadSelectedShapeToInputs()

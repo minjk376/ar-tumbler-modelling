@@ -85,8 +85,9 @@ canvas,
 
 .thinking-sidebar-body {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
-  overflow: auto;
+  overflow: hidden;
   max-height: calc(100vh - 66px);
   padding: 12px;
   border: 1px solid rgba(148, 163, 184, 0.72);
@@ -150,7 +151,11 @@ canvas,
 
 .thinking-flow {
   display: grid;
-  gap: 10px;
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .thinking-progress {
@@ -165,16 +170,16 @@ canvas,
 
 .thinking-options {
   display: grid;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 5px;
+  margin-top: 6px;
 }
 
 .thinking-options label {
   display: flex;
-  min-height: 36px;
+  min-height: 34px;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 5px 8px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   background: #fff;
@@ -210,9 +215,14 @@ canvas,
 }
 
 .thinking-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
   gap: 8px;
+  padding-top: 6px;
+  background: rgba(248, 250, 252, 0.96);
 }
 
 .thinking-actions button {
@@ -249,8 +259,8 @@ canvas,
   align-items: center;
   justify-content: flex-start;
   gap: 16px;
-  min-height: 210px;
-  padding: 8px 0 2px;
+  min-height: 170px;
+  padding: 4px 0 0;
 }
 
 .partition-slider-label {
@@ -272,7 +282,7 @@ canvas,
 .partition-slider-control {
   position: relative;
   width: 52px;
-  height: 160px;
+  height: 132px;
   touch-action: none;
   cursor: grab;
 }
@@ -502,5 +512,61 @@ button:active {
 
   .partition-slider-control {
     height: 130px;
+  }
+}
+
+@media (max-width: 900px), (max-height: 820px) {
+  .thinking-sidebar-body {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .thinking-sidebar h2 {
+    font-size: 17px;
+  }
+
+  .thinking-sidebar h3 {
+    font-size: 15px;
+    line-height: 1.28;
+  }
+
+  .thinking-menu {
+    gap: 5px;
+  }
+
+  .thinking-flow {
+    gap: 7px;
+  }
+
+  .thinking-options {
+    gap: 4px;
+    margin-top: 5px;
+  }
+
+  .thinking-options label {
+    min-height: 31px;
+    padding: 4px 7px;
+  }
+
+  .thinking-message,
+  .thinking-completion {
+    padding: 8px;
+  }
+
+  .basic-shape-question,
+  .side-view-question,
+  .base-shape-question,
+  .solid-shape-question,
+  .thinking-partition-prompt {
+    gap: 7px;
+  }
+
+  .partition-sliders {
+    min-height: 145px;
+    gap: 12px;
+  }
+
+  .partition-slider-control {
+    height: 112px;
   }
 }

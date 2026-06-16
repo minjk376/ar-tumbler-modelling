@@ -1,4 +1,4 @@
-const AR_MODEL_SCALE = 1.2
+const AR_VERIFICATION_MODEL_SCALE = 1.8
 const AR_GROUND_Y_OFFSET = 0
 const AR_VERIFICATION_GROUND_OFFSET = -0.03
 const SHOW_MARKER_DEBUG_SHAPE = false
@@ -65,9 +65,11 @@ function renderMarkerAxisDebugShapes() {
 }
 
 function getOverflowEffectSizes(overflowAmount) {
+  const clampedOverflowAmount = Math.min(Math.max(overflowAmount, 0), 1500)
+
   return {
-    puddleRadius: 0.25 + Math.min(overflowAmount / 500, 0.9),
-    dropletRadius: 0.04 + Math.min(overflowAmount / 3000, 0.08),
+    puddleRadius: Math.min(0.16 + clampedOverflowAmount / 550, 1.35),
+    dropletRadius: Math.min(0.04 + clampedOverflowAmount / 4000, 0.12),
   }
 }
 
@@ -77,6 +79,7 @@ function renderOverflowEffects({ radius, height, overflowAmount }) {
   }
 
   const { puddleRadius, dropletRadius } = getOverflowEffectSizes(overflowAmount)
+  console.log('Overflow amount', overflowAmount, 'puddle radius', puddleRadius)
 
   return `
     <a-circle
@@ -85,8 +88,8 @@ function renderOverflowEffects({ radius, height, overflowAmount }) {
       color="skyblue"
       opacity="0.55"
       rotation="-90 0 0"
-      position="0 0.006 0">
-      animation="property: opacity; from: 0.55; to: 0; dur: 900; easing: easeOutQuad">
+      position="0 0.004 0"
+      animation__fade="property: opacity; from: 0.55; to: 0; dur: 3200; easing: easeOutQuad">
     </a-circle>
 
     <a-sphere
@@ -94,9 +97,9 @@ function renderOverflowEffects({ radius, height, overflowAmount }) {
       radius="${dropletRadius}"
       color="skyblue"
       opacity="0.85"
-      position="${radius / 25} ${(height / 20) + 0.03} 0">
-      animation="property: position; to: ${radius / 22} ${(height / 20) - 0.12} 0; dur: 700; easing: easeInQuad">
-      animation__fade="property: opacity; from: 0.85; to: 0; dur: 800; easing: easeOutQuad">
+      position="${radius / 25} ${(height / 20) + 0.03} 0"
+      animation__fall="property: position; to: ${radius / 22} ${(height / 20) - 0.12} 0; dur: 1300; easing: easeInQuad"
+      animation__fade="property: opacity; from: 0.85; to: 0; dur: 2600; easing: easeOutQuad">
     </a-sphere>
 
     <a-sphere
@@ -104,9 +107,9 @@ function renderOverflowEffects({ radius, height, overflowAmount }) {
       radius="${dropletRadius * 0.8}"
       color="skyblue"
       opacity="0.85"
-      position="${-radius / 28} ${(height / 20) + 0.02} ${radius / 30}">
-      animation="property: position; to: ${-radius / 25} ${(height / 20) - 0.1} ${radius / 27}; dur: 720; easing: easeInQuad">
-      animation__fade="property: opacity; from: 0.85; to: 0; dur: 820; easing: easeOutQuad">
+      position="${-radius / 28} ${(height / 20) + 0.02} ${radius / 30}"
+      animation__fall="property: position; to: ${-radius / 25} ${(height / 20) - 0.1} ${radius / 27}; dur: 1350; easing: easeInQuad"
+      animation__fade="property: opacity; from: 0.85; to: 0; dur: 2700; easing: easeOutQuad">
     </a-sphere>
 
     <a-sphere
@@ -114,9 +117,9 @@ function renderOverflowEffects({ radius, height, overflowAmount }) {
       radius="${dropletRadius * 0.7}"
       color="skyblue"
       opacity="0.85"
-      position="${radius / 35} ${(height / 20) + 0.01} ${-radius / 28}">
-      animation="property: position; to: ${radius / 31} ${(height / 20) - 0.09} ${-radius / 25}; dur: 690; easing: easeInQuad">
-      animation__fade="property: opacity; from: 0.85; to: 0; dur: 790; easing: easeOutQuad">
+      position="${radius / 35} ${(height / 20) + 0.01} ${-radius / 28}"
+      animation__fall="property: position; to: ${radius / 31} ${(height / 20) - 0.09} ${-radius / 25}; dur: 1250; easing: easeInQuad"
+      animation__fade="property: opacity; from: 0.85; to: 0; dur: 2500; easing: easeOutQuad">
     </a-sphere>
   `
 }
@@ -282,7 +285,6 @@ export function updateGeneratedModel(modelElement, shapes, transform) {
 export function updateMarkerModel(modelElement, shapes, { overflowAmount = 0 } = {}) {
   const modelShapes = Array.isArray(shapes) ? shapes : [shapes]
 
-  console.log('Marker debug parent element', modelElement)
   modelElement.setAttribute('visible', 'true')
   modelElement.setAttribute('position', '0 0 0')
   modelElement.setAttribute('rotation', '0 0 0')
@@ -322,7 +324,7 @@ export function updateMarkerModel(modelElement, shapes, { overflowAmount = 0 } =
         class="marker-model-root"
         position="0 ${AR_GROUND_Y_OFFSET + AR_VERIFICATION_GROUND_OFFSET} 0"
         rotation="0 0 0"
-        scale="${AR_MODEL_SCALE} ${AR_MODEL_SCALE} ${AR_MODEL_SCALE}">
+        scale="${AR_VERIFICATION_MODEL_SCALE} ${AR_VERIFICATION_MODEL_SCALE} ${AR_VERIFICATION_MODEL_SCALE}">
         ${modelShapes
           .map((shape, index) => renderMarkerShape(shape, index, layout[index].yPosition))
           .join('')}
