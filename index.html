@@ -294,15 +294,35 @@
   >
     <a-entity
       id="previewCamera"
-      camera="type: orthographic; zoom: 1.15"
+      camera="active: true; type: orthographic; zoom: 1.15"
       position="0 1.15 3"
       rotation="-20 0 0">
+    </a-entity>
+    <a-entity
+      id="arCamera"
+      camera="active: false">
     </a-entity>
 
     <a-entity id="modelPreview" position="0 0 0"></a-entity>
     <a-entity id="partitionGuides" position="0 0 0"></a-entity>
 
     <a-marker preset="hiro">
+      <a-box
+        id="static-marker-test-box"
+        visible="false"
+        position="0 0.1 0"
+        width="0.2"
+        height="0.2"
+        depth="0.2"
+        color="red"
+        opacity="0.9">
+      </a-box>
+      <a-entity
+        id="marker-verification-root"
+        position="0 0 0"
+        rotation="0 0 0"
+        scale="1 1 1">
+      </a-entity>
       <a-entity id="cup" position="0 -0.02 0" scale="1.2 1.2 1.2"></a-entity>
     </a-marker>
   </a-scene>

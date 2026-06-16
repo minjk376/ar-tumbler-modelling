@@ -49,9 +49,11 @@ const elements = {
   volumeInfo: document.getElementById('volumeInfo'),
   overflowSound: document.getElementById('overflowSound'),
   cup: document.getElementById('cup'),
+  markerVerificationRoot: document.getElementById('marker-verification-root'),
   modelPreview: document.getElementById('modelPreview'),
   partitionGuides: document.getElementById('partitionGuides'),
   previewCamera: document.getElementById('previewCamera'),
+  arCamera: document.getElementById('arCamera'),
   thinkingSidebar: document.getElementById('thinkingSidebar'),
   thinkingSidebarToggle: document.getElementById('thinkingSidebarToggle'),
   thinkingModelMenu: document.getElementById('thinkingModelMenu'),
@@ -445,7 +447,7 @@ function updateOverflowVerification({ playEffects = false } = {}) {
   const overflowAmount = Math.max(verification.drinkVolume - verification.totalVolume, 0)
   const shouldPlayEffects = playEffects && verification.overflows
 
-  updateMarkerModel(elements.cup, verification.shapes, {
+  updateMarkerModel(elements.markerVerificationRoot, verification.shapes, {
     overflowAmount: shouldPlayEffects ? overflowAmount : 0,
   })
   renderOverflowVerification()
@@ -461,7 +463,7 @@ function updateOverflowVerification({ playEffects = false } = {}) {
 
   playOverflowSound()
   overflowEffectTimer = window.setTimeout(() => {
-    updateMarkerModel(elements.cup, verification.shapes)
+    updateMarkerModel(elements.markerVerificationRoot, verification.shapes)
     overflowEffectTimer = null
   }, 1000)
 }
@@ -536,8 +538,9 @@ function setMode(mode) {
   elements.modelControls.hidden = !isModelMode
   elements.overflowControls.hidden = isModelMode
   setModelPreviewVisible(elements.modelPreview, isModelMode)
-  setOverflowSceneVisible(elements.cup, !isModelMode)
+  setOverflowSceneVisible(elements.markerVerificationRoot, !isModelMode)
   setPreviewCameraActive(elements.previewCamera, isModelMode)
+  setPreviewCameraActive(elements.arCamera, !isModelMode)
   renderPartitionStep()
 
   if (isModelMode) {

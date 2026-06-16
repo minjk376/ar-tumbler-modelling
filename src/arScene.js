@@ -1,5 +1,68 @@
 const AR_MODEL_SCALE = 1.2
 const AR_GROUND_Y_OFFSET = 0
+const AR_VERIFICATION_GROUND_OFFSET = -0.03
+const SHOW_MARKER_DEBUG_SHAPE = false
+const MARKER_VERIFICATION_ROTATION = '0 0 0'
+
+function renderMarkerDebugShape() {
+  if (!SHOW_MARKER_DEBUG_SHAPE) {
+    return ''
+  }
+
+  console.log('Marker debug shape created')
+
+  return `
+    <a-box
+      class="marker-debug-shape"
+      width="0.2"
+      depth="0.2"
+      height="0.2"
+      color="#ef4444"
+      opacity="0.9"
+      position="0 0.1 0"
+      rotation="0 0 0">
+    </a-box>
+  `
+}
+
+function renderMarkerAxisDebugShapes() {
+  if (!SHOW_MARKER_DEBUG_SHAPE) {
+    return ''
+  }
+
+  const length = 0.6
+  const thickness = 0.035
+
+  return `
+    <a-box
+      class="marker-axis-debug marker-axis-debug-x"
+      width="${length}"
+      height="${thickness}"
+      depth="${thickness}"
+      color="#ef4444"
+      opacity="0.95"
+      position="${length / 2} 0 0">
+    </a-box>
+    <a-box
+      class="marker-axis-debug marker-axis-debug-y"
+      width="${thickness}"
+      height="${length}"
+      depth="${thickness}"
+      color="#22c55e"
+      opacity="0.95"
+      position="0 ${length / 2} 0">
+    </a-box>
+    <a-box
+      class="marker-axis-debug marker-axis-debug-z"
+      width="${thickness}"
+      height="${thickness}"
+      depth="${length}"
+      color="#2563eb"
+      opacity="0.95"
+      position="0 0 ${length / 2}">
+    </a-box>
+  `
+}
 
 function getOverflowEffectSizes(overflowAmount) {
   return {
@@ -219,12 +282,23 @@ export function updateGeneratedModel(modelElement, shapes, transform) {
 export function updateMarkerModel(modelElement, shapes, { overflowAmount = 0 } = {}) {
   const modelShapes = Array.isArray(shapes) ? shapes : [shapes]
 
+  console.log('Marker debug parent element', modelElement)
+  modelElement.setAttribute('visible', 'true')
+  modelElement.setAttribute('position', '0 0 0')
+  modelElement.setAttribute('rotation', '0 0 0')
+  modelElement.setAttribute('scale', '1 1 1')
+
   if (modelShapes.length === 0) {
-    modelElement.setAttribute('visible', 'false')
-    modelElement.setAttribute('position', '0 0 0')
-    modelElement.setAttribute('rotation', '0 0 0')
-    modelElement.setAttribute('scale', '1 1 1')
-    modelElement.innerHTML = ''
+    modelElement.innerHTML = `
+      ${renderMarkerAxisDebugShapes()}
+      <a-entity
+        class="marker-verification-content"
+        position="0 0 0"
+        rotation="${MARKER_VERIFICATION_ROTATION}"
+        scale="1 1 1">
+        ${renderMarkerDebugShape()}
+      </a-entity>
+    `
     return
   }
 
@@ -236,31 +310,34 @@ export function updateMarkerModel(modelElement, shapes, { overflowAmount = 0 } =
   }, 0)
   const totalHeight = dimensions.reduce((sum, shape) => sum + shape.height, 0)
 
-  modelElement.setAttribute('visible', 'true')
-  modelElement.setAttribute('position', '0 0 0')
-  modelElement.setAttribute('rotation', '0 0 0')
-  modelElement.setAttribute('scale', '1 1 1')
   modelElement.innerHTML = `
+    ${renderMarkerAxisDebugShapes()}
     <a-entity
-      class="marker-model-root"
-      position="0 ${AR_GROUND_Y_OFFSET} 0"
-      rotation="0 0 0"
-      scale="${AR_MODEL_SCALE} ${AR_MODEL_SCALE} ${AR_MODEL_SCALE}">
-      ${modelShapes
-        .map((shape, index) => renderMarkerShape(shape, index, layout[index].yPosition))
-        .join('')}
-      ${renderOverflowEffects({
-        radius: maxRadius * 20,
-        height: totalHeight * 20,
-        overflowAmount,
-      })}
+      class="marker-verification-content"
+      position="0 0 0"
+      rotation="${MARKER_VERIFICATION_ROTATION}"
+      scale="1 1 1">
+      ${renderMarkerDebugShape()}
+      <a-entity
+        class="marker-model-root"
+        position="0 ${AR_GROUND_Y_OFFSET + AR_VERIFICATION_GROUND_OFFSET} 0"
+        rotation="0 0 0"
+        scale="${AR_MODEL_SCALE} ${AR_MODEL_SCALE} ${AR_MODEL_SCALE}">
+        ${modelShapes
+          .map((shape, index) => renderMarkerShape(shape, index, layout[index].yPosition))
+          .join('')}
+        ${renderOverflowEffects({
+          radius: maxRadius * 20,
+          height: totalHeight * 20,
+          overflowAmount,
+        })}
+      </a-entity>
     </a-entity>
   `
 }
 
 export function updatePreviewCameraZoom(cameraElement, zoom) {
   cameraElement.setAttribute('camera', {
-    active: true,
     type: 'orthographic',
     zoom,
   })
