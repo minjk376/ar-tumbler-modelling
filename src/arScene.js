@@ -1,5 +1,5 @@
 const AR_MODEL_SCALE = 1.2
-const AR_MODEL_Y_OFFSET = -0.02
+const AR_GROUND_Y_OFFSET = 0
 
 function getOverflowEffectSizes(overflowAmount) {
   return {
@@ -120,6 +120,50 @@ function renderGeneratedShape(shape, index, yPosition) {
   `
 }
 
+function renderMarkerShape(shape, index, yPosition) {
+  const dimensions = getPreviewDimensions(shape)
+  const material = getPreviewMaterial(index)
+
+  if (shape.type === 'frustum') {
+    return `
+      <a-cone
+        radius-top="${dimensions.topRadius}"
+        radius-bottom="${dimensions.bottomRadius}"
+        height="${dimensions.height}"
+        segments-radial="64"
+        material="${material}"
+        position="0 ${yPosition} 0"
+        rotation="0 0 0">
+      </a-cone>
+    `
+  }
+
+  if (shape.type === 'cone') {
+    return `
+      <a-cone
+        radius-top="0"
+        radius-bottom="${dimensions.radius}"
+        height="${dimensions.height}"
+        segments-radial="64"
+        material="${material}"
+        position="0 ${yPosition} 0"
+        rotation="0 0 0">
+      </a-cone>
+    `
+  }
+
+  return `
+    <a-cylinder
+      radius="${dimensions.radius}"
+      height="${dimensions.height}"
+      segments-radial="64"
+      material="${material}"
+      position="0 ${yPosition} 0"
+      rotation="0 0 0">
+    </a-cylinder>
+  `
+}
+
 function getStackLayout(shapes) {
   const dimensions = shapes.map(getPreviewDimensions)
   const totalHeight = dimensions.reduce((sum, shape) => sum + shape.height, 0)
@@ -153,6 +197,13 @@ function getBottomAlignedStackLayout(shapes) {
 
 export function updateGeneratedModel(modelElement, shapes, transform) {
   const modelShapes = Array.isArray(shapes) ? shapes : [shapes]
+
+  if (modelShapes.length === 0) {
+    modelElement.setAttribute('visible', 'false')
+    modelElement.innerHTML = ''
+    return
+  }
+
   const layout = getStackLayout(modelShapes)
 
   modelElement.setAttribute('visible', 'true')
@@ -167,6 +218,16 @@ export function updateGeneratedModel(modelElement, shapes, transform) {
 
 export function updateMarkerModel(modelElement, shapes, { overflowAmount = 0 } = {}) {
   const modelShapes = Array.isArray(shapes) ? shapes : [shapes]
+
+  if (modelShapes.length === 0) {
+    modelElement.setAttribute('visible', 'false')
+    modelElement.setAttribute('position', '0 0 0')
+    modelElement.setAttribute('rotation', '0 0 0')
+    modelElement.setAttribute('scale', '1 1 1')
+    modelElement.innerHTML = ''
+    return
+  }
+
   const layout = getBottomAlignedStackLayout(modelShapes)
   const dimensions = modelShapes.map(getPreviewDimensions)
   const maxRadius = dimensions.reduce((max, shape) => {
@@ -176,18 +237,24 @@ export function updateMarkerModel(modelElement, shapes, { overflowAmount = 0 } =
   const totalHeight = dimensions.reduce((sum, shape) => sum + shape.height, 0)
 
   modelElement.setAttribute('visible', 'true')
-  modelElement.setAttribute('position', `0 ${AR_MODEL_Y_OFFSET} 0`)
+  modelElement.setAttribute('position', '0 0 0')
   modelElement.setAttribute('rotation', '0 0 0')
-  modelElement.setAttribute('scale', `${AR_MODEL_SCALE} ${AR_MODEL_SCALE} ${AR_MODEL_SCALE}`)
+  modelElement.setAttribute('scale', '1 1 1')
   modelElement.innerHTML = `
-    ${modelShapes
-      .map((shape, index) => renderGeneratedShape(shape, index, layout[index].yPosition))
-      .join('')}
-    ${renderOverflowEffects({
-      radius: maxRadius * 20,
-      height: totalHeight * 20,
-      overflowAmount,
-    })}
+    <a-entity
+      class="marker-model-root"
+      position="0 ${AR_GROUND_Y_OFFSET} 0"
+      rotation="0 0 0"
+      scale="${AR_MODEL_SCALE} ${AR_MODEL_SCALE} ${AR_MODEL_SCALE}">
+      ${modelShapes
+        .map((shape, index) => renderMarkerShape(shape, index, layout[index].yPosition))
+        .join('')}
+      ${renderOverflowEffects({
+        radius: maxRadius * 20,
+        height: totalHeight * 20,
+        overflowAmount,
+      })}
+    </a-entity>
   `
 }
 
@@ -203,6 +270,13 @@ export function updatePreviewCameraZoom(cameraElement, zoom) {
     camera.zoom = zoom
     camera.updateProjectionMatrix()
   }
+}
+
+export function setPreviewCameraActive(cameraElement, isActive) {
+  cameraElement.setAttribute('camera', {
+    active: isActive,
+    type: 'orthographic',
+  })
 }
 
 export function setModelPreviewVisible(modelElement, isVisible) {

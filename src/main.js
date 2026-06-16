@@ -8,6 +8,7 @@ import {
   setOverflowSceneVisible,
   updateGeneratedModel,
   updateMarkerModel,
+  setPreviewCameraActive,
   updatePreviewCameraZoom,
 } from './arScene.js'
 
@@ -57,6 +58,10 @@ const elements = {
   thinkingProgress: document.getElementById('thinkingProgress'),
   thinkingQuestionPanel: document.getElementById('thinkingQuestionPanel'),
   thinkingNextStepMessage: document.getElementById('thinkingNextStepMessage'),
+  thinkingCompletionPanel: document.getElementById('thinkingCompletionPanel'),
+  thinkingDecisionSummary: document.getElementById('thinkingDecisionSummary'),
+  createRealityModelButton: document.getElementById('createRealityModelButton'),
+  realityModelCreatedMessage: document.getElementById('realityModelCreatedMessage'),
   basicShapeQuestionPanel: document.getElementById('basicShapeQuestionPanel'),
   basicShapeQuestionTitle: document.getElementById('basicShapeQuestionTitle'),
   basicShapeNoMessage: document.getElementById('basicShapeNoMessage'),
@@ -68,6 +73,9 @@ const elements = {
   solidShapeQuestionPanel: document.getElementById('solidShapeQuestionPanel'),
   solidShapeQuestionTitle: document.getElementById('solidShapeQuestionTitle'),
   solidShapeReasonMessage: document.getElementById('solidShapeReasonMessage'),
+  observationReviewActions: document.getElementById('observationReviewActions'),
+  reviewSideViewButton: document.getElementById('reviewSideViewButton'),
+  reviewBaseShapeButton: document.getElementById('reviewBaseShapeButton'),
   thinkingPartitionPrompt: document.getElementById('thinkingPartitionPrompt'),
   thinkingPrevButton: document.getElementById('thinkingPrevButton'),
   thinkingNextButton: document.getElementById('thinkingNextButton'),
@@ -98,15 +106,19 @@ let nextShapeId = 1
 let selectedShapeIndex = 0
 let modelShapes = []
 let overflowEffectTimer = null
+let partitionFadeTimer = null
 let activePartitionDrag = null
 const thinkingState = {
   isOpen: false,
   selectedMenu: 'model',
   modelCreationStep: 1,
   modelCreationTotalSteps: 6,
+  modelCreationCompleteStep: 7,
   partCount: null,
   explorationParts: [],
   currentPartIndex: 0,
+  partDecisions: [],
+  isRealityModelCreated: false,
   partitionPositions: [],
   firstPartBasicShapeAnswer: null,
   firstPartSideViewShape: null,
@@ -120,10 +132,39 @@ const solidShapeReasonDescriptions = {
   cone: '옆에서 본 모양이 삼각형이고, 밑면이 하나의 원인 입체도형으로 표현하는 것이 적절합니다.',
 }
 
+const sideViewShapeDescriptions = {
+  rectangle: '직사각형',
+  trapezoid: '사다리꼴',
+  triangle: '삼각형',
+}
+
+const baseShapeFeatureDescriptions = {
+  'congruent-circles': '두 밑면이 합동인 원',
+  'different-circles': '두 밑면이 크기가 다른 원',
+  'one-circle': '밑면이 하나의 원',
+}
+
+const expectedSolidShapeByObservation = {
+  'rectangle|congruent-circles': 'cylinder',
+  'trapezoid|different-circles': 'frustum',
+  'triangle|one-circle': 'cone',
+}
+
+const realityModelTotalHeight = 12
+
 const explorationPartsByCount = {
   1: ['전체'],
   2: ['아래쪽 부분', '위쪽 부분'],
   3: ['아래쪽 부분', '가운데 부분', '위쪽 부분'],
+}
+
+function createEmptyPartDecision(partName) {
+  return {
+    partName,
+    sideViewShape: null,
+    baseShapeFeature: null,
+    solidShapeChoice: null,
+  }
 }
 
 function createDefaultShape(type) {
@@ -435,9 +476,9 @@ function updateModelPreview({ syncInputs = true } = {}) {
   elements.cylinderInputs.hidden = !['cylinder', 'cone'].includes(selectedShape?.type)
   elements.frustumInputs.hidden = selectedShape?.type !== 'frustum'
   elements.swapFrustumRadiiButton.disabled = selectedShape?.type !== 'frustum'
-  elements.deleteShapeButton.disabled = modelShapes.length <= 1
-  elements.moveShapeUpButton.disabled = selectedShapeIndex >= modelShapes.length - 1
-  elements.moveShapeDownButton.disabled = selectedShapeIndex <= 0
+  elements.deleteShapeButton.disabled = modelShapes.length === 0
+  elements.moveShapeUpButton.disabled = modelShapes.length === 0 || selectedShapeIndex >= modelShapes.length - 1
+  elements.moveShapeDownButton.disabled = modelShapes.length === 0 || selectedShapeIndex <= 0
   renderShapeList()
   renderEntranceInfo()
   renderModelVolume()
@@ -457,12 +498,12 @@ function addShape(type) {
 }
 
 function deleteSelectedShape() {
-  if (modelShapes.length <= 1) {
+  if (modelShapes.length === 0) {
     return
   }
 
   modelShapes.splice(selectedShapeIndex, 1)
-  selectedShapeIndex = Math.min(selectedShapeIndex, modelShapes.length - 1)
+  selectedShapeIndex = Math.max(Math.min(selectedShapeIndex, modelShapes.length - 1), 0)
   loadSelectedShapeToInputs()
   updateModelPreview({ syncInputs: false })
 }
@@ -496,6 +537,7 @@ function setMode(mode) {
   elements.overflowControls.hidden = isModelMode
   setModelPreviewVisible(elements.modelPreview, isModelMode)
   setOverflowSceneVisible(elements.cup, !isModelMode)
+  setPreviewCameraActive(elements.previewCamera, isModelMode)
   renderPartitionStep()
 
   if (isModelMode) {
@@ -545,10 +587,56 @@ function getExplorationParts(partCount) {
 function resetExplorationParts(partCount) {
   thinkingState.explorationParts = getExplorationParts(partCount)
   thinkingState.currentPartIndex = 0
+  thinkingState.partDecisions = thinkingState.explorationParts.map(createEmptyPartDecision)
+  thinkingState.isRealityModelCreated = false
 }
 
 function getCurrentPartName() {
   return thinkingState.explorationParts[thinkingState.currentPartIndex] || '이 부분'
+}
+
+function getCurrentPartDecision() {
+  const partName = getCurrentPartName()
+
+  if (!thinkingState.partDecisions[thinkingState.currentPartIndex]) {
+    thinkingState.partDecisions[thinkingState.currentPartIndex] = createEmptyPartDecision(partName)
+  }
+
+  return thinkingState.partDecisions[thinkingState.currentPartIndex]
+}
+
+function resetCurrentPartAnswers() {
+  thinkingState.firstPartBasicShapeAnswer = null
+  thinkingState.firstPartSideViewShape = null
+  thinkingState.firstPartBaseShapeFeature = null
+  thinkingState.firstPartSolidShapeChoice = null
+}
+
+function loadCurrentPartAnswers() {
+  const decision = getCurrentPartDecision()
+
+  thinkingState.firstPartBasicShapeAnswer = decision.solidShapeChoice ? 'yes' : null
+  thinkingState.firstPartSideViewShape = decision.sideViewShape
+  thinkingState.firstPartBaseShapeFeature = decision.baseShapeFeature
+  thinkingState.firstPartSolidShapeChoice = decision.solidShapeChoice
+}
+
+function saveCurrentPartDecision() {
+  thinkingState.partDecisions[thinkingState.currentPartIndex] = {
+    partName: getCurrentPartName(),
+    sideViewShape: thinkingState.firstPartSideViewShape,
+    baseShapeFeature: thinkingState.firstPartBaseShapeFeature,
+    solidShapeChoice: thinkingState.firstPartSolidShapeChoice,
+  }
+  thinkingState.isRealityModelCreated = false
+}
+
+function hasNextExplorationPart() {
+  return thinkingState.currentPartIndex < thinkingState.explorationParts.length - 1
+}
+
+function isThinkingCompleteStep() {
+  return thinkingState.modelCreationStep === thinkingState.modelCreationCompleteStep
 }
 
 function hasFinalConsonant(text) {
@@ -572,6 +660,14 @@ function getTopicParticle(text) {
 }
 
 function getSolidShapeReason(shapeChoice) {
+  if (!isObservationCombinationConsistent()) {
+    return [
+      '다시 관찰해 볼까요?',
+      '앞에서 선택한 옆모양과 밑면의 특징이 서로 잘 맞지 않습니다.',
+      '실제 부분을 다시 살펴보고, 옆에서 본 모양이나 밑면의 특징을 다시 선택해 보세요.',
+    ].join('\n')
+  }
+
   const description = solidShapeReasonDescriptions[shapeChoice]
 
   if (!description) {
@@ -579,7 +675,39 @@ function getSolidShapeReason(shapeChoice) {
   }
 
   const partName = getCurrentPartName()
-  return `${partName}${getTopicParticle(partName)} ${description}`
+  const expectedShape = getExpectedSolidShape()
+
+  if (!expectedShape || shapeChoice === expectedShape) {
+    return `선택한 이유\n\n${partName}${getTopicParticle(partName)} ${description}`
+  }
+
+  const sideViewShape = sideViewShapeDescriptions[thinkingState.firstPartSideViewShape]
+  const baseShapeFeature = baseShapeFeatureDescriptions[thinkingState.firstPartBaseShapeFeature]
+
+  return [
+    '다시 생각해 볼까요?',
+    '',
+    '앞에서 선택한 특징을 다시 확인해 보세요.',
+    '',
+    `옆에서 본 모양이 ${sideViewShape}이고,`,
+    `${baseShapeFeature}이라면`,
+    '어떤 기본 입체도형으로 표현하는 것이 가장 적절할까요?',
+  ].join('\n')
+}
+
+function getExpectedSolidShape() {
+  return expectedSolidShapeByObservation[getObservationKey()] || null
+}
+
+function getObservationKey() {
+  return [
+    thinkingState.firstPartSideViewShape,
+    thinkingState.firstPartBaseShapeFeature,
+  ].join('|')
+}
+
+function isObservationCombinationConsistent() {
+  return Boolean(getExpectedSolidShape())
 }
 
 function getPartitionColor(index) {
@@ -657,20 +785,54 @@ function isPartitionAdjustmentStep() {
 
 function shouldShowPartitionGuides() {
   return elements.modelMode.checked &&
+    !thinkingState.isRealityModelCreated &&
     thinkingState.modelCreationStep >= 2 &&
-    thinkingState.modelCreationStep <= thinkingState.modelCreationTotalSteps &&
+    (
+      thinkingState.modelCreationStep <= thinkingState.modelCreationTotalSteps ||
+      isThinkingCompleteStep()
+    ) &&
     thinkingState.partitionPositions.length > 0
 }
 
 function renderPartitionGuides() {
   const isVisible = shouldShowPartitionGuides()
 
-  elements.partitionGuides.setAttribute('visible', isVisible ? 'true' : 'false')
-
   if (!isVisible) {
+    if (partitionFadeTimer) {
+      clearTimeout(partitionFadeTimer)
+      partitionFadeTimer = null
+    }
+
+    if (thinkingState.isRealityModelCreated && elements.partitionGuides.children.length > 0) {
+      Array.from(elements.partitionGuides.children).forEach((guide) => {
+        guide.setAttribute('animation__fade', {
+          property: 'material.opacity',
+          to: 0,
+          dur: 250,
+          easing: 'easeOutQuad',
+        })
+      })
+      partitionFadeTimer = window.setTimeout(() => {
+        if (!shouldShowPartitionGuides()) {
+          elements.partitionGuides.setAttribute('visible', 'false')
+          elements.partitionGuides.innerHTML = ''
+        }
+        partitionFadeTimer = null
+      }, 260)
+      return
+    }
+
+    elements.partitionGuides.setAttribute('visible', 'false')
     elements.partitionGuides.innerHTML = ''
     return
   }
+
+  if (partitionFadeTimer) {
+    clearTimeout(partitionFadeTimer)
+    partitionFadeTimer = null
+  }
+
+  elements.partitionGuides.setAttribute('visible', 'true')
 
   while (elements.partitionGuides.children.length > thinkingState.partitionPositions.length) {
     elements.partitionGuides.lastElementChild.remove()
@@ -697,6 +859,11 @@ function renderPartitionGuides() {
     }
 
     guide.setAttribute('color', getPartitionColor(index))
+    guide.setAttribute('material', {
+      color: getPartitionColor(index),
+      opacity: 1,
+      transparent: true,
+    })
   })
 }
 
@@ -780,6 +947,7 @@ function renderBaseShapeQuestion() {
 function renderSolidShapeQuestion() {
   const isQuestionStep = thinkingState.modelCreationStep === 6
   const reason = getSolidShapeReason(thinkingState.firstPartSolidShapeChoice)
+  const shouldReviewObservation = isQuestionStep && !isObservationCombinationConsistent()
   const partName = getCurrentPartName()
   const objectParticle = getObjectParticle(partName)
 
@@ -787,16 +955,105 @@ function renderSolidShapeQuestion() {
   elements.solidShapeQuestionTitle.textContent = `${partName}${objectParticle} 어떤 기본 입체도형으로 표현하는 것이 가장 적절할까요?`
   elements.solidShapeReasonMessage.hidden = !isQuestionStep || !reason
   elements.solidShapeReasonMessage.textContent = reason
+  elements.observationReviewActions.hidden = !shouldReviewObservation
   elements.solidShapeChoiceInputs.forEach((input) => {
     input.checked = input.value === thinkingState.firstPartSolidShapeChoice
   })
 }
 
+function getSolidShapeName(shapeChoice) {
+  if (shapeChoice === 'frustum') {
+    return '원뿔대'
+  }
+
+  if (shapeChoice === 'cone') {
+    return '원뿔'
+  }
+
+  if (shapeChoice === 'cylinder') {
+    return '원기둥'
+  }
+
+  return '미선택'
+}
+
+function renderThinkingCompletion() {
+  const isComplete = isThinkingCompleteStep()
+
+  elements.thinkingCompletionPanel.hidden = !isComplete
+  elements.realityModelCreatedMessage.hidden = !isComplete || !thinkingState.isRealityModelCreated
+
+  if (!isComplete) {
+    elements.thinkingDecisionSummary.innerHTML = ''
+    return
+  }
+
+  elements.thinkingDecisionSummary.innerHTML = thinkingState.partDecisions
+    .map((decision) => `
+      <li>${decision.partName}: ${getSolidShapeName(decision.solidShapeChoice)}</li>
+    `)
+    .join('')
+}
+
+function getRealityModelHeightEstimates() {
+  const partCount = thinkingState.explorationParts.length || 1
+
+  if (partCount === 1) {
+    return [realityModelTotalHeight]
+  }
+
+  const fallbackPositions = getPartitionDefaults(String(partCount))
+  const guidePositions = thinkingState.partitionPositions.length === partCount - 1
+    ? thinkingState.partitionPositions
+    : fallbackPositions
+  const boundaries = [0, ...guidePositions].sort((a, b) => a - b)
+
+  boundaries.push(100)
+
+  return boundaries.slice(1).map((boundary, index) => {
+    const previousBoundary = boundaries[index]
+    const height = ((boundary - previousBoundary) / 100) * realityModelTotalHeight
+
+    return Math.max(Number(height.toFixed(1)), 0.5)
+  })
+}
+
+function createRealityModelShape(decision, height) {
+  return {
+    ...createDefaultShape(decision.solidShapeChoice),
+    height,
+  }
+}
+
+function createRealityModelFromDecisions() {
+  if (!isThinkingCompleteStep()) {
+    return
+  }
+
+  const heights = getRealityModelHeightEstimates()
+
+  nextShapeId = 1
+  modelShapes = thinkingState.partDecisions.map((decision, index) => (
+    createRealityModelShape(decision, heights[index] ?? realityModelTotalHeight)
+  ))
+  selectedShapeIndex = Math.max(modelShapes.length - 1, 0)
+  loadSelectedShapeToInputs()
+  updateModelPreview({ syncInputs: false })
+  thinkingState.isRealityModelCreated = true
+  renderPartitionGuides()
+  renderThinkingModelFlow()
+}
+
 function renderThinkingModelFlow() {
-  elements.thinkingProgress.textContent = `모델 생성 ${thinkingState.modelCreationStep}/${thinkingState.modelCreationTotalSteps}`
+  const isComplete = isThinkingCompleteStep()
+
+  elements.thinkingProgress.textContent = isComplete
+    ? '모델 생성 완료'
+    : `모델 생성 ${thinkingState.modelCreationStep}/${thinkingState.modelCreationTotalSteps}`
   elements.thinkingQuestionPanel.hidden = thinkingState.modelCreationStep !== 1
   elements.thinkingNextStepMessage.hidden = true
   elements.thinkingPrevButton.disabled = thinkingState.modelCreationStep === 1
+  elements.thinkingNextButton.hidden = isComplete
   elements.thinkingNextButton.disabled = (
     (thinkingState.modelCreationStep === 1 && !thinkingState.partCount) ||
     (thinkingState.modelCreationStep === 3 && thinkingState.firstPartBasicShapeAnswer !== 'yes') ||
@@ -815,6 +1072,7 @@ function renderThinkingModelFlow() {
   renderSideViewQuestion()
   renderBaseShapeQuestion()
   renderSolidShapeQuestion()
+  renderThinkingCompletion()
 }
 
 function toggleThinkingSidebar() {
@@ -832,10 +1090,7 @@ function selectPartCount(event) {
   thinkingState.partCount = event.target.value
   resetExplorationParts(thinkingState.partCount)
   thinkingState.partitionPositions = getPartitionDefaults(thinkingState.partCount)
-  thinkingState.firstPartBasicShapeAnswer = null
-  thinkingState.firstPartSideViewShape = null
-  thinkingState.firstPartBaseShapeFeature = null
-  thinkingState.firstPartSolidShapeChoice = null
+  resetCurrentPartAnswers()
   renderThinkingModelFlow()
 }
 
@@ -893,19 +1148,35 @@ function goToThinkingNextStep() {
     thinkingState.modelCreationStep === 6 &&
     thinkingState.firstPartSolidShapeChoice
   ) {
-    return
+    saveCurrentPartDecision()
+
+    if (hasNextExplorationPart()) {
+      thinkingState.currentPartIndex += 1
+      resetCurrentPartAnswers()
+      thinkingState.modelCreationStep = 3
+    } else {
+      thinkingState.modelCreationStep = thinkingState.modelCreationCompleteStep
+    }
   }
 
   renderThinkingModelFlow()
 }
 
 function goToThinkingPreviousStep() {
-  if (thinkingState.modelCreationStep === 6) {
+  if (isThinkingCompleteStep()) {
+    thinkingState.currentPartIndex = Math.max(thinkingState.explorationParts.length - 1, 0)
+    loadCurrentPartAnswers()
+    thinkingState.modelCreationStep = 6
+  } else if (thinkingState.modelCreationStep === 6) {
     thinkingState.modelCreationStep = 5
   } else if (thinkingState.modelCreationStep === 5) {
     thinkingState.modelCreationStep = 4
   } else if (thinkingState.modelCreationStep === 4) {
     thinkingState.modelCreationStep = 3
+  } else if (thinkingState.modelCreationStep === 3 && thinkingState.currentPartIndex > 0) {
+    thinkingState.currentPartIndex -= 1
+    loadCurrentPartAnswers()
+    thinkingState.modelCreationStep = 6
   } else if (thinkingState.modelCreationStep === 3 && thinkingState.partCount !== '1') {
     thinkingState.modelCreationStep = 2
   } else {
@@ -917,6 +1188,16 @@ function goToThinkingPreviousStep() {
 
 function goBackToPartitionStep() {
   thinkingState.modelCreationStep = 2
+  renderThinkingModelFlow()
+}
+
+function reviewSideViewShape() {
+  thinkingState.modelCreationStep = 4
+  renderThinkingModelFlow()
+}
+
+function reviewBaseShapeFeature() {
+  thinkingState.modelCreationStep = 5
   renderThinkingModelFlow()
 }
 
@@ -1021,6 +1302,7 @@ elements.updateCupButton.addEventListener('click', () => updateOverflowVerificat
 elements.drinkVolume.addEventListener('input', updateOverflowVerification)
 elements.thinkingSidebarToggle.addEventListener('click', toggleThinkingSidebar)
 elements.thinkingModelMenu.addEventListener('click', selectThinkingModelMenu)
+elements.createRealityModelButton.addEventListener('click', createRealityModelFromDecisions)
 elements.partCountInputs.forEach((input) => {
   input.addEventListener('change', selectPartCount)
 })
@@ -1037,6 +1319,8 @@ elements.solidShapeChoiceInputs.forEach((input) => {
   input.addEventListener('change', selectSolidShapeChoice)
 })
 elements.backToPartitionButton.addEventListener('click', goBackToPartitionStep)
+elements.reviewSideViewButton.addEventListener('click', reviewSideViewShape)
+elements.reviewBaseShapeButton.addEventListener('click', reviewBaseShapeFeature)
 elements.partitionSliders.addEventListener('pointerdown', startPartitionDrag)
 elements.partitionSliders.addEventListener('keydown', adjustPartitionWithKeyboard)
 window.addEventListener('pointermove', updatePartitionPositionFromPointer)

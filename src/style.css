@@ -190,6 +190,23 @@ canvas,
   background: #eff6ff;
   color: #1e3a8a;
   line-height: 1.4;
+  white-space: pre-line;
+}
+
+.thinking-completion {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border-left: 3px solid #059669;
+  background: #ecfdf5;
+  color: #064e3b;
+}
+
+.thinking-decision-summary {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
 }
 
 .thinking-actions {
@@ -200,6 +217,12 @@ canvas,
 
 .thinking-actions button {
   flex: 1;
+}
+
+.thinking-feedback-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
 }
 
 .thinking-partition-prompt {
