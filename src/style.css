@@ -119,7 +119,7 @@ canvas,
 
 .thinking-menu {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -130,6 +130,7 @@ canvas,
   justify-content: space-between;
   gap: 5px;
   text-align: left;
+  white-space: nowrap;
 }
 
 .thinking-menu button.active {
