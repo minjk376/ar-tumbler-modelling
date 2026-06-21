@@ -241,12 +241,29 @@ canvas,
   gap: 7px;
 }
 
+.goal-question,
 .basic-shape-question,
 .side-view-question,
 .base-shape-question,
 .solid-shape-question {
   display: grid;
   gap: 10px;
+}
+
+.goal-custom-field {
+  display: grid;
+  gap: 5px;
+}
+
+.goal-volume-field span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.goal-volume-field input {
+  flex: 1;
+  min-width: 0;
 }
 
 .thinking-partition-prompt p {

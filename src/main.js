@@ -56,7 +56,22 @@ const elements = {
   arCamera: document.getElementById('arCamera'),
   thinkingSidebar: document.getElementById('thinkingSidebar'),
   thinkingSidebarToggle: document.getElementById('thinkingSidebarToggle'),
+  thinkingGoalMenu: document.getElementById('thinkingGoalMenu'),
   thinkingModelMenu: document.getElementById('thinkingModelMenu'),
+  thinkingGoalFlow: document.getElementById('thinkingGoalFlow'),
+  goalProgress: document.getElementById('goalProgress'),
+  goalDrinkPanel: document.getElementById('goalDrinkPanel'),
+  goalVolumePanel: document.getElementById('goalVolumePanel'),
+  goalConditionPanel: document.getElementById('goalConditionPanel'),
+  customDrinkTypeLabel: document.getElementById('customDrinkTypeLabel'),
+  customDrinkTypeInput: document.getElementById('customDrinkTypeInput'),
+  customVolumeLabel: document.getElementById('customVolumeLabel'),
+  customVolumeInput: document.getElementById('customVolumeInput'),
+  customExtraConditionLabel: document.getElementById('customExtraConditionLabel'),
+  customExtraConditionInput: document.getElementById('customExtraConditionInput'),
+  goalPrevButton: document.getElementById('goalPrevButton'),
+  goalNextButton: document.getElementById('goalNextButton'),
+  thinkingModelFlow: document.getElementById('thinkingModelFlow'),
   thinkingProgress: document.getElementById('thinkingProgress'),
   thinkingQuestionPanel: document.getElementById('thinkingQuestionPanel'),
   thinkingNextStepMessage: document.getElementById('thinkingNextStepMessage'),
@@ -82,6 +97,9 @@ const elements = {
   thinkingPrevButton: document.getElementById('thinkingPrevButton'),
   thinkingNextButton: document.getElementById('thinkingNextButton'),
   partitionSliders: document.getElementById('partitionSliders'),
+  goalDrinkTypeInputs: Array.from(document.querySelectorAll('input[name="goalDrinkType"]')),
+  goalTargetVolumeInputs: Array.from(document.querySelectorAll('input[name="goalTargetVolume"]')),
+  goalExtraConditionInputs: Array.from(document.querySelectorAll('input[name="goalExtraCondition"]')),
   partCountInputs: Array.from(document.querySelectorAll('input[name="partCount"]')),
   basicShapeAnswerInputs: Array.from(document.querySelectorAll('input[name="basicShapeAnswer"]')),
   sideViewShapeInputs: Array.from(document.querySelectorAll('input[name="sideViewShape"]')),
@@ -113,9 +131,20 @@ let modelShapes = []
 let overflowEffectTimer = null
 let partitionFadeTimer = null
 let activePartitionDrag = null
+const defaultGoalSettings = {
+  drinkType: '',
+  customDrinkType: '',
+  targetVolumeMl: 500,
+  extraCondition: '',
+  customExtraCondition: '',
+}
+let goalSettings = loadGoalSettings()
 const thinkingState = {
   isOpen: false,
   selectedMenu: 'model',
+  goalStep: 1,
+  isGoalCompleted: false,
+  isCustomGoalVolumeSelected: !['350', '500', '600'].includes(String(goalSettings.targetVolumeMl)),
   modelCreationStep: 1,
   modelCreationTotalSteps: 6,
   modelCreationCompleteStep: 7,
@@ -568,6 +597,100 @@ function zoomModel(delta) {
 function renderThinkingSidebar() {
   elements.thinkingSidebar.classList.toggle('collapsed', !thinkingState.isOpen)
   elements.thinkingSidebarToggle.setAttribute('aria-expanded', String(thinkingState.isOpen))
+}
+
+function loadGoalSettings() {
+  try {
+    const savedSettings = JSON.parse(localStorage.getItem('goalSettings') || '{}')
+    const targetVolumeMl = Number(savedSettings.targetVolumeMl)
+
+    return {
+      ...defaultGoalSettings,
+      ...savedSettings,
+      targetVolumeMl: Number.isFinite(targetVolumeMl) && targetVolumeMl > 0
+        ? targetVolumeMl
+        : defaultGoalSettings.targetVolumeMl,
+    }
+  } catch {
+    return { ...defaultGoalSettings }
+  }
+}
+
+function saveGoalSettings() {
+  localStorage.setItem('goalSettings', JSON.stringify(goalSettings))
+}
+
+function isCustomGoalVolume() {
+  return (
+    thinkingState.isCustomGoalVolumeSelected ||
+    !['350', '500', '600'].includes(String(goalSettings.targetVolumeMl))
+  )
+}
+
+function isGoalStepReady() {
+  if (thinkingState.goalStep === 1) {
+    return (
+      Boolean(goalSettings.drinkType) &&
+      (goalSettings.drinkType !== '기타' || Boolean(goalSettings.customDrinkType.trim()))
+    )
+  }
+
+  if (thinkingState.goalStep === 2) {
+    return goalSettings.targetVolumeMl > 0
+  }
+
+  return (
+    Boolean(goalSettings.extraCondition) &&
+    (
+      goalSettings.extraCondition !== '기타' ||
+      Boolean(goalSettings.customExtraCondition.trim())
+    )
+  )
+}
+
+function renderThinkingMenu() {
+  const isGoalMenu = thinkingState.selectedMenu === 'goal'
+
+  elements.thinkingGoalMenu.classList.toggle('active', isGoalMenu)
+  elements.thinkingModelMenu.classList.toggle('active', !isGoalMenu)
+  elements.thinkingGoalFlow.hidden = !isGoalMenu
+  elements.thinkingModelFlow.hidden = isGoalMenu
+}
+
+function renderThinkingGoalFlow() {
+  renderThinkingMenu()
+
+  elements.goalProgress.textContent = `목표 설정 ${thinkingState.goalStep}/3`
+  elements.goalDrinkPanel.hidden = thinkingState.goalStep !== 1
+  elements.goalVolumePanel.hidden = thinkingState.goalStep !== 2
+  elements.goalConditionPanel.hidden = thinkingState.goalStep !== 3
+  elements.customDrinkTypeLabel.hidden = goalSettings.drinkType !== '기타'
+  elements.customVolumeLabel.hidden = !isCustomGoalVolume()
+  elements.customExtraConditionLabel.hidden = goalSettings.extraCondition !== '기타'
+  elements.customDrinkTypeInput.value = goalSettings.customDrinkType
+  elements.customVolumeInput.value = (
+    isCustomGoalVolume() && goalSettings.targetVolumeMl > 0
+      ? goalSettings.targetVolumeMl
+      : ''
+  )
+  elements.customExtraConditionInput.value = goalSettings.customExtraCondition
+  elements.goalPrevButton.disabled = thinkingState.goalStep === 1
+  elements.goalNextButton.disabled = thinkingState.isGoalCompleted || !isGoalStepReady()
+  elements.goalNextButton.textContent = thinkingState.isGoalCompleted
+    ? '완료됨'
+    : thinkingState.goalStep === 3 ? '완료' : '다음'
+
+  elements.goalDrinkTypeInputs.forEach((input) => {
+    input.checked = input.value === goalSettings.drinkType
+  })
+  elements.goalTargetVolumeInputs.forEach((input) => {
+    input.checked = input.value === (
+      isCustomGoalVolume() ? 'custom' : String(goalSettings.targetVolumeMl)
+    )
+  })
+  elements.goalExtraConditionInputs.forEach((input) => {
+    input.checked = input.value === goalSettings.extraCondition
+  })
 }
 
 function getPartitionLineY(position) {
@@ -1055,6 +1178,8 @@ function createRealityModelFromDecisions() {
 }
 
 function renderThinkingModelFlow() {
+  renderThinkingMenu()
+
   const isComplete = isThinkingCompleteStep()
 
   elements.thinkingProgress.textContent = isComplete
@@ -1092,8 +1217,104 @@ function toggleThinkingSidebar() {
 
 function selectThinkingModelMenu() {
   thinkingState.selectedMenu = 'model'
-  elements.thinkingModelMenu.classList.add('active')
   renderThinkingModelFlow()
+}
+
+function selectThinkingGoalMenu() {
+  thinkingState.selectedMenu = 'goal'
+  renderThinkingGoalFlow()
+}
+
+function selectGoalDrinkType(event) {
+  thinkingState.isGoalCompleted = false
+  goalSettings = {
+    ...goalSettings,
+    drinkType: event.target.value,
+  }
+  saveGoalSettings()
+  renderThinkingGoalFlow()
+}
+
+function updateCustomDrinkType(event) {
+  thinkingState.isGoalCompleted = false
+  goalSettings = {
+    ...goalSettings,
+    customDrinkType: event.target.value,
+  }
+  saveGoalSettings()
+  renderThinkingGoalFlow()
+}
+
+function selectGoalTargetVolume(event) {
+  thinkingState.isGoalCompleted = false
+  const selectedValue = event.target.value
+  thinkingState.isCustomGoalVolumeSelected = selectedValue === 'custom'
+  const targetVolumeMl = thinkingState.isCustomGoalVolumeSelected
+    ? Number(elements.customVolumeInput.value) || 0
+    : Number(selectedValue)
+
+  goalSettings = {
+    ...goalSettings,
+    targetVolumeMl,
+  }
+  saveGoalSettings()
+  renderThinkingGoalFlow()
+}
+
+function updateCustomGoalVolume(event) {
+  thinkingState.isGoalCompleted = false
+  thinkingState.isCustomGoalVolumeSelected = true
+  const targetVolumeMl = Number(event.target.value)
+
+  goalSettings = {
+    ...goalSettings,
+    targetVolumeMl: Number.isFinite(targetVolumeMl) ? targetVolumeMl : 0,
+  }
+  saveGoalSettings()
+  renderThinkingGoalFlow()
+}
+
+function selectGoalExtraCondition(event) {
+  thinkingState.isGoalCompleted = false
+  goalSettings = {
+    ...goalSettings,
+    extraCondition: event.target.value,
+  }
+  saveGoalSettings()
+  renderThinkingGoalFlow()
+}
+
+function updateCustomExtraCondition(event) {
+  thinkingState.isGoalCompleted = false
+  goalSettings = {
+    ...goalSettings,
+    customExtraCondition: event.target.value,
+  }
+  saveGoalSettings()
+  renderThinkingGoalFlow()
+}
+
+function goToGoalNextStep() {
+  if (!isGoalStepReady()) {
+    return
+  }
+
+  if (thinkingState.goalStep === 3) {
+    thinkingState.isGoalCompleted = true
+    saveGoalSettings()
+    renderThinkingGoalFlow()
+    return
+  }
+
+  thinkingState.goalStep = Math.min(thinkingState.goalStep + 1, 3)
+  saveGoalSettings()
+  renderThinkingGoalFlow()
+}
+
+function goToGoalPreviousStep() {
+  thinkingState.isGoalCompleted = false
+  thinkingState.goalStep = Math.max(thinkingState.goalStep - 1, 1)
+  renderThinkingGoalFlow()
 }
 
 function selectPartCount(event) {
@@ -1311,8 +1532,23 @@ elements.zoomInButton.addEventListener('click', () => zoomModel(0.1))
 elements.updateCupButton.addEventListener('click', () => updateOverflowVerification({ playEffects: true }))
 elements.drinkVolume.addEventListener('input', updateOverflowVerification)
 elements.thinkingSidebarToggle.addEventListener('click', toggleThinkingSidebar)
+elements.thinkingGoalMenu.addEventListener('click', selectThinkingGoalMenu)
 elements.thinkingModelMenu.addEventListener('click', selectThinkingModelMenu)
 elements.createRealityModelButton.addEventListener('click', createRealityModelFromDecisions)
+elements.goalDrinkTypeInputs.forEach((input) => {
+  input.addEventListener('change', selectGoalDrinkType)
+})
+elements.goalTargetVolumeInputs.forEach((input) => {
+  input.addEventListener('change', selectGoalTargetVolume)
+})
+elements.goalExtraConditionInputs.forEach((input) => {
+  input.addEventListener('change', selectGoalExtraCondition)
+})
+elements.customDrinkTypeInput.addEventListener('input', updateCustomDrinkType)
+elements.customVolumeInput.addEventListener('input', updateCustomGoalVolume)
+elements.customExtraConditionInput.addEventListener('input', updateCustomExtraCondition)
+elements.goalNextButton.addEventListener('click', goToGoalNextStep)
+elements.goalPrevButton.addEventListener('click', goToGoalPreviousStep)
 elements.partCountInputs.forEach((input) => {
   input.addEventListener('change', selectPartCount)
 })
@@ -1341,5 +1577,6 @@ elements.thinkingPrevButton.addEventListener('click', goToThinkingPreviousStep)
 window.addEventListener('load', () => {
   setMode(modes.model)
   renderThinkingSidebar()
+  renderThinkingGoalFlow()
   renderThinkingModelFlow()
 })
