@@ -55,7 +55,7 @@
       </label>
       <label>
         <input id="overflowMode" type="radio" name="mode" value="overflow" />
-        넘침 검증
+        검증
       </label>
     </fieldset>
 
@@ -128,7 +128,7 @@
       </label>
 
       <div class="actions">
-        <button id="updateCupButton" type="button">검증</button>
+        <button id="updateCupButton" type="button">음료 담아보기</button>
       </div>
 
       <div id="result" aria-live="polite"></div>
@@ -420,5 +420,44 @@
       <a-entity id="cup" position="0 -0.02 0" scale="1.2 1.2 1.2"></a-entity>
     </a-marker>
   </a-scene>
+
+  <script>
+    ;(() => {
+      const defaultDrinkVolume = '355'
+      const drinkVolumeInput = document.getElementById('drinkVolume')
+      const customVolumeInput = document.getElementById('customVolumeInput')
+      const overflowModeInput = document.getElementById('overflowMode')
+      const goalVolumeInputs = document.querySelectorAll('input[name="goalTargetVolume"]')
+
+      if (!drinkVolumeInput) {
+        return
+      }
+
+      const syncDrinkVolumeWithGoal = () => {
+        const selectedGoalVolume = document.querySelector('input[name="goalTargetVolume"]:checked')
+        const selectedValue = selectedGoalVolume?.value
+        const goalVolume =
+          selectedValue === 'custom'
+            ? customVolumeInput?.value
+            : selectedValue
+
+        drinkVolumeInput.value = goalVolume || defaultDrinkVolume
+      }
+
+      goalVolumeInputs.forEach((input) => {
+        input.addEventListener('change', syncDrinkVolumeWithGoal)
+      })
+
+      customVolumeInput?.addEventListener('input', syncDrinkVolumeWithGoal)
+      overflowModeInput?.addEventListener('change', () => {
+        if (overflowModeInput.checked) {
+          syncDrinkVolumeWithGoal()
+          requestAnimationFrame(syncDrinkVolumeWithGoal)
+        }
+      })
+
+      syncDrinkVolumeWithGoal()
+    })()
+  </script>
 </body>
 </html>
