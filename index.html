@@ -156,7 +156,7 @@
         <button id="thinkingGoalMenu" type="button">목표 설정</button>
         <button id="thinkingModelMenu" class="active" type="button">모델 생성</button>
         <button type="button" disabled>부피 계산 <span>준비 중</span></button>
-        <button type="button" disabled>검증 <span>준비 중</span></button>
+        <button id="thinkingVerificationMenu" type="button">검증</button>
       </nav>
 
       <section id="thinkingGoalFlow" class="thinking-flow" aria-live="polite" hidden>
@@ -250,6 +250,34 @@
         <div class="thinking-actions">
           <button id="goalPrevButton" type="button">이전</button>
           <button id="goalNextButton" type="button">다음</button>
+        </div>
+      </section>
+
+      <section id="thinkingVerificationFlow" class="thinking-flow" aria-live="polite" hidden>
+        <div class="thinking-progress">검증 1/4</div>
+
+        <div class="goal-question">
+          <h3>처음에 설정한 목표를 떠올리며 다음 단계를 진행해 봅시다.</h3>
+          <ul id="verificationGoalSummary" class="thinking-decision-summary"></ul>
+        </div>
+
+        <div class="thinking-actions">
+          <button id="verificationPrevButton" type="button">이전</button>
+          <button id="verificationNextButton" type="button">다음</button>
+        </div>
+      </section>
+
+      <section id="thinkingVerificationStepTwoFlow" class="thinking-flow" aria-live="polite" hidden>
+        <div class="thinking-progress">검증 2/4</div>
+
+        <div class="goal-question">
+          <h3>왼쪽의 '검증' 모드에서 '음료 담아보기' 버튼을 눌러, 설정한 용량의 음료를 텀블러 모델에 담아 봅시다.</h3>
+          <p class="thinking-message">담긴 모습을 보면서 현재 모델이 처음에 설정한 목표를 만족하는지 생각해 봅시다.</p>
+        </div>
+
+        <div class="thinking-actions">
+          <button id="verificationStepTwoPrevButton" type="button">이전</button>
+          <button id="verificationStepTwoNextButton" type="button" disabled>다음</button>
         </div>
       </section>
 
@@ -457,6 +485,98 @@
       })
 
       syncDrinkVolumeWithGoal()
+    })()
+  </script>
+
+  <script>
+    ;(() => {
+      const goalMenuButton = document.getElementById('thinkingGoalMenu')
+      const modelMenuButton = document.getElementById('thinkingModelMenu')
+      const verificationMenuButton = document.getElementById('thinkingVerificationMenu')
+      const goalFlow = document.getElementById('thinkingGoalFlow')
+      const modelFlow = document.getElementById('thinkingModelFlow')
+      const verificationFlow = document.getElementById('thinkingVerificationFlow')
+      const verificationStepTwoFlow = document.getElementById('thinkingVerificationStepTwoFlow')
+      const verificationGoalSummary = document.getElementById('verificationGoalSummary')
+      const verificationNextButton = document.getElementById('verificationNextButton')
+      const verificationStepTwoPrevButton = document.getElementById('verificationStepTwoPrevButton')
+
+      if (!verificationMenuButton || !verificationFlow || !verificationGoalSummary) {
+        return
+      }
+
+      const getSelectedGoalValue = (name, customInputId) => {
+        const selectedInput = document.querySelector(`input[name="${name}"]:checked`)
+
+        if (!selectedInput) {
+          return ''
+        }
+
+        const customValue = document.getElementById(customInputId)?.value.trim()
+
+        if (selectedInput.value === '기타' || selectedInput.value === 'custom') {
+          return customValue || ''
+        }
+
+        return selectedInput.value
+      }
+
+      const updateVerificationGoalSummary = () => {
+        const drinkType = getSelectedGoalValue('goalDrinkType', 'customDrinkTypeInput') || '-'
+        const targetVolume = getSelectedGoalValue('goalTargetVolume', 'customVolumeInput')
+        const extraCondition = getSelectedGoalValue('goalExtraCondition', 'customExtraConditionInput') || '-'
+        const targetVolumeText = targetVolume ? `${targetVolume} mL` : '-'
+
+        verificationGoalSummary.replaceChildren()
+
+        ;[
+          ['내가 자주 담는 음료', drinkType],
+          ['목표 용량', targetVolumeText],
+          ['추가 조건', extraCondition],
+        ].forEach(([label, value]) => {
+          const item = document.createElement('li')
+
+          item.textContent = `${label} : ${value}`
+          verificationGoalSummary.append(item)
+        })
+      }
+
+      const setActiveMenu = (activeButton) => {
+        ;[goalMenuButton, modelMenuButton, verificationMenuButton].forEach((button) => {
+          button?.classList.toggle('active', button === activeButton)
+        })
+      }
+
+      verificationMenuButton.addEventListener('click', () => {
+        updateVerificationGoalSummary()
+        if (goalFlow) goalFlow.hidden = true
+        if (modelFlow) modelFlow.hidden = true
+        verificationFlow.hidden = false
+        if (verificationStepTwoFlow) verificationStepTwoFlow.hidden = true
+        setActiveMenu(verificationMenuButton)
+      })
+
+      verificationNextButton?.addEventListener('click', () => {
+        verificationFlow.hidden = true
+        if (verificationStepTwoFlow) verificationStepTwoFlow.hidden = false
+      })
+
+      verificationStepTwoPrevButton?.addEventListener('click', () => {
+        if (verificationStepTwoFlow) verificationStepTwoFlow.hidden = true
+        verificationFlow.hidden = false
+      })
+
+      goalMenuButton?.addEventListener('click', () => {
+        verificationFlow.hidden = true
+        if (verificationStepTwoFlow) verificationStepTwoFlow.hidden = true
+        setActiveMenu(goalMenuButton)
+      })
+
+      modelMenuButton?.addEventListener('click', () => {
+        verificationFlow.hidden = true
+        if (verificationStepTwoFlow) verificationStepTwoFlow.hidden = true
+        setActiveMenu(modelMenuButton)
+      })
     })()
   </script>
 </body>
