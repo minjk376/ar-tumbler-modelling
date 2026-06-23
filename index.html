@@ -121,12 +121,12 @@
 
       <div id="frustumInputs" hidden>
         <label>
-          윗반지름
+          윗면 반지름
           <input id="topRadius" type="number" value="3" min="0" step="0.1" />
         </label>
 
         <label>
-          아랫반지름
+          아랫면 반지름
           <input id="modelBottomRadius" type="number" value="5" min="0" step="0.1" />
         </label>
 
@@ -155,8 +155,6 @@
       </div>
 
       <div class="actions">
-        <button id="rotateLeftButton" type="button">왼쪽 회전</button>
-        <button id="rotateRightButton" type="button">오른쪽 회전</button>
         <button id="zoomOutButton" type="button">축소</button>
         <button id="zoomInButton" type="button">확대</button>
       </div>
@@ -868,8 +866,8 @@
 
         return `
           <b>원뿔대 정보</b><br>
-          윗반지름: ${formatCm(topRadius)}<br>
-          아랫반지름: ${formatCm(bottomRadius)}<br>
+          윗면 반지름: ${formatCm(topRadius)}<br>
+          아랫면 반지름: ${formatCm(bottomRadius)}<br>
           높이: ${formatCm(height)}<br>
           <br>
           <b>잘리기 전 큰 원뿔 정보</b><br>
@@ -1460,10 +1458,10 @@
       }
 
       const showVolumeGuideFourthStep = () => {
-        hideOriginalConeGuide()
         if (volumeStepThreeFlow) volumeStepThreeFlow.hidden = true
         if (volumeStepFourFlow) volumeStepFourFlow.hidden = false
         if (volumeStepFiveFlow) volumeStepFiveFlow.hidden = true
+        if (volumeStepSixFlow) volumeStepSixFlow.hidden = true
         updateVolumeNeededInfoSelection()
       }
 
@@ -1540,9 +1538,22 @@
         if (volumeStepSixFlow) volumeStepSixFlow.hidden = true
       }
 
+      const handleVolumeStepSixPrevClick = (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        console.log('[volume guide] step 6 prev clicked')
+        showVolumeGuideFifthStep()
+      }
+
       const showVolumeGuideSixthStep = () => {
         if (volumeStepFiveFlow) volumeStepFiveFlow.hidden = true
         if (volumeStepSixFlow) volumeStepSixFlow.hidden = false
+
+        const currentPrevButton = volumeStepSixFlow?.querySelector('#volumeStepSixPrevButton')
+
+        if (currentPrevButton) {
+          currentPrevButton.onclick = handleVolumeStepSixPrevClick
+        }
       }
 
       const showVerificationFirstStep = () => {
@@ -1648,10 +1659,31 @@
 
       volumeStepFiveNextButton?.addEventListener('click', showVolumeGuideSixthStep)
 
-      volumeStepSixPrevButton?.addEventListener('click', () => {
-        if (volumeStepSixFlow) volumeStepSixFlow.hidden = true
-        if (volumeStepFiveFlow) volumeStepFiveFlow.hidden = false
-      })
+      if (volumeStepSixPrevButton) {
+        volumeStepSixPrevButton.onclick = handleVolumeStepSixPrevClick
+      }
+
+      if (!document.body.dataset.volumeStepSixPrevDelegated) {
+        document.body.dataset.volumeStepSixPrevDelegated = 'true'
+        document.addEventListener('pointerdown', (event) => {
+          const stepSixPrevButton = event.target.closest('#volumeStepSixPrevButton')
+
+          if (!stepSixPrevButton) {
+            return
+          }
+
+          handleVolumeStepSixPrevClick(event)
+        }, true)
+        document.addEventListener('click', (event) => {
+          const stepSixPrevButton = event.target.closest('#volumeStepSixPrevButton')
+
+          if (!stepSixPrevButton) {
+            return
+          }
+
+          handleVolumeStepSixPrevClick(event)
+        })
+      }
 
       showOriginalConeButton?.addEventListener('click', showOriginalConeGuide)
 

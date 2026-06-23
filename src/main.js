@@ -1525,8 +1525,8 @@ elements.shapeList.addEventListener('click', (event) => {
 
   selectShape(parseInt(shapeButton.dataset.shapeIndex, 10))
 })
-elements.rotateLeftButton.addEventListener('click', () => rotateModel(-15))
-elements.rotateRightButton.addEventListener('click', () => rotateModel(15))
+elements.rotateLeftButton?.addEventListener('click', () => rotateModel(-15))
+elements.rotateRightButton?.addEventListener('click', () => rotateModel(15))
 elements.zoomOutButton.addEventListener('click', () => zoomModel(-0.1))
 elements.zoomInButton.addEventListener('click', () => zoomModel(0.1))
 elements.updateCupButton.addEventListener('click', () => updateOverflowVerification({ playEffects: true }))
