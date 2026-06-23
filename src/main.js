@@ -444,12 +444,16 @@ function renderModelVolume() {
 
 function renderOverflowVerification() {
   const verification = getOverflowVerificationInfo()
+  const studentSavedVolumeTotal = window.getStudentSavedVolumeTotal?.() ?? 0
+  const studentSavedVolumeText = Number.isFinite(studentSavedVolumeTotal)
+    ? studentSavedVolumeTotal.toFixed(1)
+    : '0.0'
 
   if (!verification.entrance) {
     elements.result.innerHTML = '<div class="safe">모델 없음</div>'
     elements.volumeInfo.hidden = false
     elements.volumeInfo.innerHTML = `
-      <b>총 부피</b>: 0 mL<br>
+      <b>전체 부피 계산 결과</b>: ${studentSavedVolumeText} mL<br>
       <b>음료량</b>: ${verification.drinkVolume.toFixed(1)} mL<br>
       모델을 먼저 생성해 주세요.
     `
@@ -462,7 +466,7 @@ function renderOverflowVerification() {
   elements.result.innerHTML = `<div class="${resultClass}">${resultText}</div>`
   elements.volumeInfo.hidden = false
   elements.volumeInfo.innerHTML = `
-    <b>총 부피</b>: ${verification.totalVolume.toFixed(1)} mL<br>
+    <b>전체 부피 계산 결과</b>: ${studentSavedVolumeText} mL<br>
     <b>음료량</b>: ${verification.drinkVolume.toFixed(1)} mL<br>
     <b>입구</b>: ${verification.entrance.displayNumber}번 ${getShapeName(verification.entrance.shape)}의 윗면
     <small>입구 반지름 ${verification.entrance.radius} cm</small>

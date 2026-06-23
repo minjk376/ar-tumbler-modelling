@@ -820,6 +820,12 @@
         }
       }
 
+      window.getStudentSavedVolumeTotal = () => (
+        getShapeItems().reduce((sum, { shapeIndex }) => (
+          Number.isFinite(studentVolumes[shapeIndex]) ? sum + studentVolumes[shapeIndex] : sum
+        ), 0)
+      )
+
       const getShapeDetailList = () => {
         const selectedShapeButton = getSelectedShapeButton()
         const shapeIndex = Number(selectedShapeButton?.dataset.shapeIndex)
