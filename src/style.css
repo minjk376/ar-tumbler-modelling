@@ -57,7 +57,7 @@ canvas,
   display: grid;
   gap: 8px;
   width: min(320px, calc(100vw - 360px));
-  max-height: calc(100vh - 20px);
+  max-height: calc(100dvh - 20px);
   box-sizing: border-box;
   color: #111;
   font-size: 15px;
@@ -87,8 +87,9 @@ canvas,
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
+  min-height: 0;
   overflow: hidden;
-  max-height: calc(100vh - 66px);
+  max-height: calc(100dvh - 66px);
   padding: 12px;
   border: 1px solid rgba(148, 163, 184, 0.72);
   border-radius: 8px;
@@ -155,7 +156,9 @@ canvas,
   align-content: start;
   gap: 8px;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 2px;
 }
 
@@ -534,8 +537,13 @@ button:active {
 }
 
 @media (max-width: 900px), (max-height: 820px) {
+  .thinking-sidebar {
+    max-height: calc(100dvh - 16px);
+  }
+
   .thinking-sidebar-body {
     gap: 8px;
+    max-height: calc(100dvh - 58px);
     padding: 10px;
   }
 
@@ -586,5 +594,56 @@ button:active {
 
   .partition-slider-control {
     height: 112px;
+  }
+}
+
+@media (max-width: 1180px) and (max-height: 900px) {
+  .thinking-sidebar {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .thinking-sidebar-body {
+    gap: 8px;
+    max-height: calc(100dvh - 58px);
+    padding: 10px;
+  }
+
+  #thinkingModelFlow {
+    gap: 6px;
+    padding-right: 4px;
+    scrollbar-gutter: stable;
+  }
+
+  #thinkingModelFlow .thinking-options {
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  #thinkingModelFlow .thinking-options label {
+    min-height: 30px;
+    padding: 4px 7px;
+  }
+
+  #thinkingModelFlow .thinking-message,
+  #thinkingModelFlow .thinking-completion {
+    padding: 7px 8px;
+  }
+
+  #thinkingModelFlow .thinking-completion,
+  #thinkingModelFlow .basic-shape-question,
+  #thinkingModelFlow .side-view-question,
+  #thinkingModelFlow .base-shape-question,
+  #thinkingModelFlow .solid-shape-question,
+  #thinkingModelFlow .thinking-partition-prompt {
+    gap: 6px;
+  }
+
+  #thinkingModelFlow .thinking-decision-summary {
+    gap: 3px;
+  }
+
+  #thinkingModelFlow .thinking-actions {
+    margin-top: 2px;
+    padding-top: 4px;
   }
 }
