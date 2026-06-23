@@ -155,7 +155,7 @@
       <nav class="thinking-menu" aria-label="사고 지원 메뉴">
         <button id="thinkingGoalMenu" type="button">목표 설정</button>
         <button id="thinkingModelMenu" class="active" type="button">모델 생성</button>
-        <button type="button" disabled>부피 계산 <span>준비 중</span></button>
+        <button id="thinkingVolumeMenu" type="button">부피 계산</button>
         <button id="thinkingVerificationMenu" type="button">검증</button>
       </nav>
 
@@ -253,6 +253,53 @@
         </div>
       </section>
 
+      <section id="thinkingVolumeFlow" class="thinking-flow" aria-live="polite" hidden>
+        <div class="thinking-progress">부피 계산 1/6</div>
+
+        <div class="goal-question">
+          <h3>어느 부분의 부피를 먼저 구해 볼까요?</h3>
+          <div id="volumeShapeOptions" class="thinking-options" role="radiogroup" aria-label="부피를 계산할 도형 선택"></div>
+          <p id="selectedVolumeShapeMessage" class="thinking-message" hidden></p>
+        </div>
+
+        <div class="thinking-actions">
+          <button id="volumeGuidePrevButton" type="button">이전</button>
+          <button id="volumeGuideNextButton" type="button" disabled>다음</button>
+        </div>
+      </section>
+
+      <section id="thinkingVolumeStepTwoFlow" class="thinking-flow" aria-live="polite" hidden>
+        <div class="thinking-progress">부피 계산 2/6</div>
+
+        <div class="goal-question">
+          <h3>원뿔대의 뜻을 떠올려 봅시다.</h3>
+          <button id="showFrustumDefinitionButton" type="button">원뿔대 뜻 보기</button>
+          <div id="frustumDefinitionBox" class="thinking-decision-summary" hidden>
+            원뿔을 밑면에 평행한 평면으로 자를 때 생기는 두 입체도형 중 원뿔이 아닌 쪽의 입체도형입니다.
+          </div>
+        </div>
+
+        <div class="thinking-actions">
+          <button id="volumeStepTwoPrevButton" type="button">이전</button>
+          <button id="volumeStepTwoNextButton" type="button">다음</button>
+        </div>
+      </section>
+
+      <section id="thinkingVolumeStepThreeFlow" class="thinking-flow" aria-live="polite" hidden>
+        <div class="thinking-progress">부피 계산 3/6</div>
+
+        <div class="goal-question">
+          <h3>잘리기 전 원뿔을 상상해 봅시다.</h3>
+          <button id="showOriginalConeButton" type="button">잘리기 전 원뿔 보기</button>
+          <p class="thinking-message">선택한 원뿔대가 원래 어떤 원뿔에서 잘려 나왔는지 확인해 봅시다.</p>
+        </div>
+
+        <div class="thinking-actions">
+          <button id="volumeStepThreePrevButton" type="button">이전</button>
+          <button id="volumeStepThreeNextButton" type="button" disabled>다음</button>
+        </div>
+      </section>
+
       <section id="thinkingVerificationFlow" class="thinking-flow" aria-live="polite" hidden>
         <div class="thinking-progress">검증 1/4</div>
 
@@ -277,7 +324,50 @@
 
         <div class="thinking-actions">
           <button id="verificationStepTwoPrevButton" type="button">이전</button>
-          <button id="verificationStepTwoNextButton" type="button" disabled>다음</button>
+          <button id="verificationStepTwoNextButton" type="button">다음</button>
+        </div>
+      </section>
+
+      <section id="thinkingVerificationStepThreeFlow" class="thinking-flow" aria-live="polite" hidden>
+        <div class="thinking-progress">검증 3/4</div>
+
+        <div class="goal-question">
+          <h3>이 모델과 실제 텀블러를 비교해 봅시다. 어떤 점이 같고 어떤 점이 다른가요?</h3>
+          <textarea
+            id="verificationComparisonInput"
+            placeholder="예: 전체적인 모양은 비슷하지만, 뚜껑이나 곡선은 단순화했습니다."
+            rows="5"></textarea>
+        </div>
+
+        <div class="thinking-actions">
+          <button id="verificationStepThreePrevButton" type="button">이전</button>
+          <button id="verificationStepThreeNextButton" type="button">다음</button>
+        </div>
+      </section>
+
+      <section id="thinkingVerificationStepFourFlow" class="thinking-flow" aria-live="polite" hidden>
+        <div class="thinking-progress">검증 4/4</div>
+
+        <div class="goal-question">
+          <h3>현재 모델이 처음 목표를 만족하는지 판단하고, 다음 행동을 선택해 봅시다.</h3>
+          <ul class="thinking-decision-summary">
+            <li>목표 용량 : <span id="verificationFinalTargetVolume">-</span></li>
+            <li>추가 조건 : <span id="verificationFinalExtraCondition">-</span></li>
+          </ul>
+          <div class="thinking-options">
+            <button id="confirmFinalModelButton" type="button">이 모델로 결정하기</button>
+            <button id="resetGoalFromVerificationButton" type="button">목표 다시 설정하기</button>
+            <button id="resetModelFromVerificationButton" type="button">모델 다시 생성하기</button>
+            <button id="recalculateVolumeFromVerificationButton" type="button">부피 다시 계산하기</button>
+            <button id="restartVerificationButton" type="button">검증 다시 하기</button>
+          </div>
+          <p id="finalModelDecisionMessage" class="thinking-message" hidden>
+            현재 모델을 최종 모델로 결정했습니다.
+          </p>
+        </div>
+
+        <div class="thinking-actions">
+          <button id="verificationStepFourPrevButton" type="button">이전</button>
         </div>
       </section>
 
@@ -492,14 +582,49 @@
     ;(() => {
       const goalMenuButton = document.getElementById('thinkingGoalMenu')
       const modelMenuButton = document.getElementById('thinkingModelMenu')
+      const volumeMenuButton = document.getElementById('thinkingVolumeMenu')
       const verificationMenuButton = document.getElementById('thinkingVerificationMenu')
       const goalFlow = document.getElementById('thinkingGoalFlow')
       const modelFlow = document.getElementById('thinkingModelFlow')
+      const volumeFlow = document.getElementById('thinkingVolumeFlow')
+      const volumeStepTwoFlow = document.getElementById('thinkingVolumeStepTwoFlow')
+      const volumeStepThreeFlow = document.getElementById('thinkingVolumeStepThreeFlow')
+      const volumeShapeOptions = document.getElementById('volumeShapeOptions')
+      const selectedVolumeShapeMessage = document.getElementById('selectedVolumeShapeMessage')
+      const volumeGuidePrevButton = document.getElementById('volumeGuidePrevButton')
+      const volumeGuideNextButton = document.getElementById('volumeGuideNextButton')
+      const showFrustumDefinitionButton = document.getElementById('showFrustumDefinitionButton')
+      const frustumDefinitionBox = document.getElementById('frustumDefinitionBox')
+      const volumeStepTwoPrevButton = document.getElementById('volumeStepTwoPrevButton')
+      const volumeStepTwoNextButton = document.getElementById('volumeStepTwoNextButton')
+      const volumeStepThreePrevButton = document.getElementById('volumeStepThreePrevButton')
+      const showOriginalConeButton = document.getElementById('showOriginalConeButton')
       const verificationFlow = document.getElementById('thinkingVerificationFlow')
       const verificationStepTwoFlow = document.getElementById('thinkingVerificationStepTwoFlow')
+      const verificationStepThreeFlow = document.getElementById('thinkingVerificationStepThreeFlow')
+      const verificationStepFourFlow = document.getElementById('thinkingVerificationStepFourFlow')
       const verificationGoalSummary = document.getElementById('verificationGoalSummary')
+      const verificationFinalTargetVolume = document.getElementById('verificationFinalTargetVolume')
+      const verificationFinalExtraCondition = document.getElementById('verificationFinalExtraCondition')
       const verificationNextButton = document.getElementById('verificationNextButton')
       const verificationStepTwoPrevButton = document.getElementById('verificationStepTwoPrevButton')
+      const verificationStepTwoNextButton = document.getElementById('verificationStepTwoNextButton')
+      const verificationStepThreePrevButton = document.getElementById('verificationStepThreePrevButton')
+      const verificationStepThreeNextButton = document.getElementById('verificationStepThreeNextButton')
+      const verificationStepFourPrevButton = document.getElementById('verificationStepFourPrevButton')
+      const confirmFinalModelButton = document.getElementById('confirmFinalModelButton')
+      const resetGoalFromVerificationButton = document.getElementById('resetGoalFromVerificationButton')
+      const resetModelFromVerificationButton = document.getElementById('resetModelFromVerificationButton')
+      const recalculateVolumeFromVerificationButton = document.getElementById('recalculateVolumeFromVerificationButton')
+      const restartVerificationButton = document.getElementById('restartVerificationButton')
+      const finalModelDecisionMessage = document.getElementById('finalModelDecisionMessage')
+      const modelModeInput = document.getElementById('modelMode')
+      const overflowModeInput = document.getElementById('overflowMode')
+      const modelPreview = document.getElementById('modelPreview')
+      const shapeList = document.getElementById('shapeList')
+      const goalPrevButton = document.getElementById('goalPrevButton')
+      const thinkingPrevButton = document.getElementById('thinkingPrevButton')
+      let originalConePreviewScale = ''
 
       if (!verificationMenuButton || !verificationFlow || !verificationGoalSummary) {
         return
@@ -541,19 +666,374 @@
         })
       }
 
+      const updateVerificationFinalSummary = () => {
+        const targetVolume = getSelectedGoalValue('goalTargetVolume', 'customVolumeInput')
+        const extraCondition = getSelectedGoalValue('goalExtraCondition', 'customExtraConditionInput') || '-'
+
+        if (verificationFinalTargetVolume) {
+          verificationFinalTargetVolume.textContent = targetVolume ? `${targetVolume} mL` : '-'
+        }
+
+        if (verificationFinalExtraCondition) {
+          verificationFinalExtraCondition.textContent = extraCondition
+        }
+      }
+
       const setActiveMenu = (activeButton) => {
-        ;[goalMenuButton, modelMenuButton, verificationMenuButton].forEach((button) => {
+        ;[goalMenuButton, modelMenuButton, volumeMenuButton, verificationMenuButton].forEach((button) => {
           button?.classList.toggle('active', button === activeButton)
         })
       }
 
-      verificationMenuButton.addEventListener('click', () => {
+      const hideVerificationFlows = () => {
+        verificationFlow.hidden = true
+        if (verificationStepTwoFlow) verificationStepTwoFlow.hidden = true
+        if (verificationStepThreeFlow) verificationStepThreeFlow.hidden = true
+        if (verificationStepFourFlow) verificationStepFourFlow.hidden = true
+      }
+
+      const hideVolumeFlow = () => {
+        if (volumeFlow) volumeFlow.hidden = true
+        if (volumeStepTwoFlow) volumeStepTwoFlow.hidden = true
+        if (volumeStepThreeFlow) volumeStepThreeFlow.hidden = true
+        hideOriginalConeGuide()
+      }
+
+      const getVolumeGuideShapes = () => {
+        const shapeButtons = shapeList?.querySelectorAll('[data-shape-index]') ?? []
+
+        return Array.from(shapeButtons, (button) => {
+          const match = button.textContent.trim().match(/^(\d+)\.\s*(원기둥|원뿔대|원뿔)/)
+
+          return match ? { number: match[1], name: match[2], shapeIndex: button.dataset.shapeIndex } : null
+        }).filter(Boolean)
+      }
+
+      const renderVolumeGuideShapes = () => {
+        const shapes = getVolumeGuideShapes()
+
+        volumeShapeOptions?.replaceChildren()
+        if (selectedVolumeShapeMessage) selectedVolumeShapeMessage.hidden = true
+        if (volumeGuideNextButton) volumeGuideNextButton.disabled = true
+
+        if (!volumeShapeOptions) {
+          return
+        }
+
+        if (shapes.length === 0) {
+          const emptyMessage = document.createElement('p')
+
+          emptyMessage.className = 'thinking-message'
+          emptyMessage.textContent = '표시할 도형이 없습니다.'
+          volumeShapeOptions.append(emptyMessage)
+          return
+        }
+
+        shapes.forEach(({ number, name, shapeIndex }) => {
+          const label = document.createElement('label')
+          const input = document.createElement('input')
+
+          input.type = 'radio'
+          input.name = 'volumeGuideShape'
+          input.value = number
+          input.dataset.shapeName = name
+          input.dataset.shapeIndex = shapeIndex
+          input.dataset.shapeType = name === '원뿔대' ? 'frustum' : name === '원뿔' ? 'cone' : 'cylinder'
+          label.append(input, ` ${number}번 도형 : ${name}`)
+          volumeShapeOptions.append(label)
+        })
+      }
+
+      const getVectorText = (vector) => `${vector.x} ${vector.y} ${vector.z}`
+
+      const getScaleValues = (scaleText) => {
+        if (typeof scaleText === 'object' && scaleText) {
+          return {
+            x: Number.isFinite(scaleText.x) ? scaleText.x : 1,
+            y: Number.isFinite(scaleText.y) ? scaleText.y : 1,
+            z: Number.isFinite(scaleText.z) ? scaleText.z : 1,
+          }
+        }
+
+        const values = String(scaleText || '1 1 1').split(/\s+/).map(Number)
+
+        return {
+          x: Number.isFinite(values[0]) ? values[0] : 1,
+          y: Number.isFinite(values[1]) ? values[1] : 1,
+          z: Number.isFinite(values[2]) ? values[2] : 1,
+        }
+      }
+
+      const getPreviewShapeEntities = () => Array.from(modelPreview?.children ?? []).filter((child) => (
+        child.tagName?.toLowerCase() === 'a-cone' || child.tagName?.toLowerCase() === 'a-cylinder'
+      ))
+
+      const hideOriginalConeGuide = () => {
+        document.getElementById('volumeOriginalConeGuide')?.remove()
+
+        if (modelPreview && originalConePreviewScale) {
+          modelPreview.setAttribute('scale', originalConePreviewScale)
+        }
+
+        originalConePreviewScale = ''
+
+        if (showOriginalConeButton) {
+          showOriginalConeButton.textContent = '잘리기 전 원뿔 보기'
+        }
+      }
+
+      const getPreviewHorizontalVector = () => {
+        const rotation = modelPreview?.getAttribute('rotation')
+        const rotationY = typeof rotation === 'object' && rotation
+          ? Number(rotation.y) || 0
+          : Number(String(rotation || '0 0 0').split(/\s+/)[1]) || 0
+        const radians = rotationY * Math.PI / 180
+
+        return {
+          x: Math.cos(radians),
+          z: Math.sin(radians),
+        }
+      }
+
+      const createOriginalConeOutline = ({ apexY, baseY, radius, horizontalVector }) => {
+        const apex = { x: 0, y: apexY, z: 0 }
+        const sideRadius = Math.max(radius * 0.025, 0.008)
+        const circleSegments = 256
+        const circleOffsets = [-sideRadius, 0, sideRadius]
+        const circleLines = circleOffsets.map((offset) => {
+          const circleRadius = Math.max(radius + offset, radius * 0.98)
+
+          return Array.from({ length: circleSegments }, (_, index) => {
+            const angle = (Math.PI * 2 * index) / circleSegments
+            const nextAngle = (Math.PI * 2 * (index + 1)) / circleSegments
+            const point = {
+              x: Math.cos(angle) * circleRadius,
+              y: baseY,
+              z: Math.sin(angle) * circleRadius,
+            }
+            const nextPoint = {
+              x: Math.cos(nextAngle) * circleRadius,
+              y: baseY,
+              z: Math.sin(nextAngle) * circleRadius,
+            }
+
+            return `<a-entity line="start: ${getVectorText(point)}; end: ${getVectorText(nextPoint)}; color: #1d4ed8"></a-entity>`
+          }).join('')
+        }).join('')
+        const perpendicular = {
+          x: -horizontalVector.z,
+          z: horizontalVector.x,
+        }
+        const sideOffsets = [-sideRadius, 0, sideRadius]
+        const edgePoints = [
+          {
+            x: -horizontalVector.x * radius,
+            y: baseY,
+            z: -horizontalVector.z * radius,
+          },
+          {
+            x: horizontalVector.x * radius,
+            y: baseY,
+            z: horizontalVector.z * radius,
+          },
+        ]
+        const sideLines = edgePoints.map((point) => (
+          sideOffsets.map((offset) => {
+            const offsetPoint = {
+              x: point.x + perpendicular.x * offset,
+              y: point.y,
+              z: point.z + perpendicular.z * offset,
+            }
+
+            return `<a-entity line="start: ${getVectorText(apex)}; end: ${getVectorText(offsetPoint)}; color: #1d4ed8"></a-entity>`
+          }).join('')
+        )).join('')
+
+        return `
+          ${circleLines}
+          ${sideLines}
+        `
+      }
+
+      const showOriginalConeGuide = () => {
+        if (modelPreview?.querySelector('#volumeOriginalConeGuide')) {
+          hideOriginalConeGuide()
+          return
+        }
+
+        const selectedInput = volumeShapeOptions?.querySelector('input[name="volumeGuideShape"]:checked')
+        const shapeIndex = Number(selectedInput?.dataset.shapeIndex)
+        const selectedShape = getPreviewShapeEntities()[shapeIndex]
+
+        if (!modelPreview || !selectedShape || selectedShape.tagName?.toLowerCase() !== 'a-cone') {
+          return
+        }
+
+        const topRadius = Number(selectedShape.getAttribute('radius-top'))
+        const bottomRadius = Number(selectedShape.getAttribute('radius-bottom'))
+        const frustumHeight = Number(selectedShape.getAttribute('height'))
+        const position = selectedShape.getAttribute('position')
+        const centerY = Number(position?.y ?? 0)
+        const largerRadius = Math.max(topRadius, bottomRadius)
+        const smallerRadius = Math.min(topRadius, bottomRadius)
+
+        if (
+          !Number.isFinite(topRadius) ||
+          !Number.isFinite(bottomRadius) ||
+          !Number.isFinite(frustumHeight) ||
+          largerRadius === smallerRadius
+        ) {
+          return
+        }
+
+        const scale = getScaleValues(modelPreview.getAttribute('scale'))
+
+        originalConePreviewScale = `${scale.x} ${scale.y} ${scale.z}`
+        modelPreview.setAttribute('scale', `${scale.x * 0.6} ${scale.y * 0.6} ${scale.z * 0.6}`)
+
+        const wholeConeHeight = (frustumHeight * largerRadius) / (largerRadius - smallerRadius)
+        const topY = centerY + frustumHeight / 2
+        const bottomY = centerY - frustumHeight / 2
+        const apexIsAbove = topRadius < bottomRadius
+        const coneCenterY = apexIsAbove
+          ? bottomY + wholeConeHeight / 2
+          : topY - wholeConeHeight / 2
+        const apexY = apexIsAbove
+          ? bottomY + wholeConeHeight
+          : topY - wholeConeHeight
+        const baseY = apexIsAbove ? bottomY : topY
+        const guide = document.createElement('a-entity')
+
+        guide.id = 'volumeOriginalConeGuide'
+        guide.innerHTML = `
+          <a-cone
+            radius-top="${apexIsAbove ? 0 : largerRadius}"
+            radius-bottom="${apexIsAbove ? largerRadius : 0}"
+            height="${wholeConeHeight}"
+            segments-radial="128"
+            material="color: #60a5fa; opacity: 0.16; transparent: true; side: double; depthWrite: false"
+            position="0 ${coneCenterY} 0">
+          </a-cone>
+          ${createOriginalConeOutline({
+            apexY,
+            baseY,
+            radius: largerRadius,
+            horizontalVector: getPreviewHorizontalVector(),
+          })}
+        `
+        modelPreview.append(guide)
+
+        if (showOriginalConeButton) {
+          showOriginalConeButton.textContent = '잘리기 전 원뿔 숨기기'
+        }
+      }
+
+      const showVolumeGuideFirstStep = () => {
+        hideVerificationFlows()
+        if (goalFlow) goalFlow.hidden = true
+        if (modelFlow) modelFlow.hidden = true
+        if (volumeFlow) volumeFlow.hidden = false
+        if (volumeStepTwoFlow) volumeStepTwoFlow.hidden = true
+        if (volumeStepThreeFlow) volumeStepThreeFlow.hidden = true
+        renderVolumeGuideShapes()
+        setActiveMenu(volumeMenuButton)
+      }
+
+      const showVolumeGuideSecondStep = () => {
+        if (volumeFlow) volumeFlow.hidden = true
+        if (volumeStepTwoFlow) volumeStepTwoFlow.hidden = false
+        if (volumeStepThreeFlow) volumeStepThreeFlow.hidden = true
+        if (frustumDefinitionBox) frustumDefinitionBox.hidden = true
+      }
+
+      const showVolumeGuideThirdStep = () => {
+        if (volumeStepTwoFlow) volumeStepTwoFlow.hidden = true
+        if (volumeStepThreeFlow) volumeStepThreeFlow.hidden = false
+      }
+
+      const showVerificationFirstStep = () => {
         updateVerificationGoalSummary()
         if (goalFlow) goalFlow.hidden = true
         if (modelFlow) modelFlow.hidden = true
+        hideVolumeFlow()
         verificationFlow.hidden = false
         if (verificationStepTwoFlow) verificationStepTwoFlow.hidden = true
+        if (verificationStepThreeFlow) verificationStepThreeFlow.hidden = true
+        if (verificationStepFourFlow) verificationStepFourFlow.hidden = true
         setActiveMenu(verificationMenuButton)
+      }
+
+      const goToGoalFirstStep = () => {
+        hideVolumeFlow()
+        hideVerificationFlows()
+        goalMenuButton?.click()
+        while (goalPrevButton && !goalPrevButton.disabled) {
+          goalPrevButton.click()
+        }
+      }
+
+      const goToModelFirstStep = () => {
+        hideVolumeFlow()
+        hideVerificationFlows()
+        modelMenuButton?.click()
+        while (thinkingPrevButton && !thinkingPrevButton.disabled) {
+          thinkingPrevButton.click()
+        }
+      }
+
+      volumeMenuButton?.addEventListener('click', showVolumeGuideFirstStep)
+
+      volumeShapeOptions?.addEventListener('change', (event) => {
+        const selectedInput = event.target.closest('input[name="volumeGuideShape"]')
+
+        if (!selectedInput) {
+          return
+        }
+
+        const shapeName = selectedInput.dataset.shapeName
+
+        if (selectedVolumeShapeMessage) {
+          selectedVolumeShapeMessage.textContent = `선택한 도형 : ${selectedInput.value}번 도형 (${shapeName})`
+          selectedVolumeShapeMessage.hidden = false
+        }
+
+        if (volumeGuideNextButton) volumeGuideNextButton.disabled = selectedInput.dataset.shapeType !== 'frustum'
+      })
+
+      volumeGuideNextButton?.addEventListener('click', () => {
+        const selectedInput = volumeShapeOptions?.querySelector('input[name="volumeGuideShape"]:checked')
+
+        if (selectedInput?.dataset.shapeType === 'frustum') {
+          showVolumeGuideSecondStep()
+        }
+      })
+
+      volumeGuidePrevButton?.addEventListener('click', () => {
+        hideVolumeFlow()
+        modelModeInput?.click()
+        setActiveMenu(null)
+      })
+
+      showFrustumDefinitionButton?.addEventListener('click', () => {
+        if (frustumDefinitionBox) frustumDefinitionBox.hidden = false
+      })
+
+      volumeStepTwoPrevButton?.addEventListener('click', () => {
+        if (volumeStepTwoFlow) volumeStepTwoFlow.hidden = true
+        if (volumeFlow) volumeFlow.hidden = false
+      })
+
+      volumeStepTwoNextButton?.addEventListener('click', showVolumeGuideThirdStep)
+
+      volumeStepThreePrevButton?.addEventListener('click', () => {
+        if (volumeStepThreeFlow) volumeStepThreeFlow.hidden = true
+        if (volumeStepTwoFlow) volumeStepTwoFlow.hidden = false
+      })
+
+      showOriginalConeButton?.addEventListener('click', showOriginalConeGuide)
+
+      verificationMenuButton.addEventListener('click', () => {
+        showVerificationFirstStep()
       })
 
       verificationNextButton?.addEventListener('click', () => {
@@ -566,15 +1046,52 @@
         verificationFlow.hidden = false
       })
 
-      goalMenuButton?.addEventListener('click', () => {
-        verificationFlow.hidden = true
+      verificationStepTwoNextButton?.addEventListener('click', () => {
         if (verificationStepTwoFlow) verificationStepTwoFlow.hidden = true
+        if (verificationStepThreeFlow) verificationStepThreeFlow.hidden = false
+      })
+
+      verificationStepThreePrevButton?.addEventListener('click', () => {
+        if (verificationStepThreeFlow) verificationStepThreeFlow.hidden = true
+        if (verificationStepTwoFlow) verificationStepTwoFlow.hidden = false
+      })
+
+      verificationStepThreeNextButton?.addEventListener('click', () => {
+        updateVerificationFinalSummary()
+        if (finalModelDecisionMessage) finalModelDecisionMessage.hidden = true
+        if (verificationStepThreeFlow) verificationStepThreeFlow.hidden = true
+        if (verificationStepFourFlow) verificationStepFourFlow.hidden = false
+      })
+
+      verificationStepFourPrevButton?.addEventListener('click', () => {
+        if (verificationStepFourFlow) verificationStepFourFlow.hidden = true
+        if (verificationStepThreeFlow) verificationStepThreeFlow.hidden = false
+      })
+
+      confirmFinalModelButton?.addEventListener('click', () => {
+        if (finalModelDecisionMessage) finalModelDecisionMessage.hidden = false
+      })
+
+      resetGoalFromVerificationButton?.addEventListener('click', goToGoalFirstStep)
+
+      resetModelFromVerificationButton?.addEventListener('click', goToModelFirstStep)
+
+      recalculateVolumeFromVerificationButton?.addEventListener('click', () => {
+        hideVerificationFlows()
+        overflowModeInput?.click()
+      })
+
+      restartVerificationButton?.addEventListener('click', showVerificationFirstStep)
+
+      goalMenuButton?.addEventListener('click', () => {
+        hideVolumeFlow()
+        hideVerificationFlows()
         setActiveMenu(goalMenuButton)
       })
 
       modelMenuButton?.addEventListener('click', () => {
-        verificationFlow.hidden = true
-        if (verificationStepTwoFlow) verificationStepTwoFlow.hidden = true
+        hideVolumeFlow()
+        hideVerificationFlows()
         setActiveMenu(modelMenuButton)
       })
     })()
