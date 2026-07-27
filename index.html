@@ -786,6 +786,8 @@
 
       const formatCm = (value) => `${Number(value).toFixed(1)} cm`
 
+      const formatInputCm = (value) => `${Number(Number(value).toFixed(6))} cm`
+
       const formatMl = (value) => `${Number(value).toFixed(1)} mL`
 
       const setSaveStudentVolumeEnabled = (enabled) => {
@@ -842,8 +844,8 @@
 
           return `
             <b>원기둥</b><br>
-            반지름: ${formatCm(radius)}<br>
-            높이: ${formatCm(height)}
+            반지름: ${formatInputCm(radius)}<br>
+            높이: ${formatInputCm(height)}
           `
         }
 
@@ -856,8 +858,8 @@
 
           return `
             <b>원뿔</b><br>
-            반지름: ${formatCm(radius)}<br>
-            높이: ${formatCm(height)}<br>
+            반지름: ${formatInputCm(radius)}<br>
+            높이: ${formatInputCm(height)}<br>
             모선: ${formatCm(slantHeight)}
           `
         }
@@ -871,9 +873,9 @@
 
         return `
           <b>원뿔대 정보</b><br>
-          윗면 반지름: ${formatCm(topRadius)}<br>
-          아랫면 반지름: ${formatCm(bottomRadius)}<br>
-          높이: ${formatCm(height)}<br>
+          윗면 반지름: ${formatInputCm(topRadius)}<br>
+          아랫면 반지름: ${formatInputCm(bottomRadius)}<br>
+          높이: ${formatInputCm(height)}<br>
           <br>
           <b>잘리기 전 큰 원뿔 정보</b><br>
           큰 원뿔 높이: ${formatCm(largeConeHeight)}<br>
