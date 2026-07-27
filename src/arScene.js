@@ -340,7 +340,6 @@ export function updateMarkerModel(modelElement, shapes, { overflowAmount = 0 } =
 
 export function updatePreviewCameraZoom(cameraElement, zoom) {
   cameraElement.setAttribute('camera', {
-    type: 'orthographic',
     zoom,
   })
 
@@ -351,10 +350,34 @@ export function updatePreviewCameraZoom(cameraElement, zoom) {
   }
 }
 
+export function syncPreviewCameraAspect(cameraElement, sceneElement) {
+  const previewCamera = cameraElement?.components?.camera?.camera
+  const activeCamera = sceneElement?.camera
+  const canvas = sceneElement?.canvas
+
+  if (
+    !canvas ||
+    !previewCamera?.isPerspectiveCamera ||
+    previewCamera !== activeCamera
+  ) {
+    return false
+  }
+
+  const width = canvas.clientWidth || canvas.width
+  const height = canvas.clientHeight || canvas.height
+
+  if (!width || !height) {
+    return false
+  }
+
+  previewCamera.aspect = width / height
+  previewCamera.updateProjectionMatrix()
+  return true
+}
+
 export function setPreviewCameraActive(cameraElement, isActive) {
   cameraElement.setAttribute('camera', {
     active: isActive,
-    type: 'orthographic',
   })
 }
 

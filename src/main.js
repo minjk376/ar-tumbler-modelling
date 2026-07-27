@@ -9,6 +9,7 @@ import {
   updateGeneratedModel,
   updateMarkerModel,
   setPreviewCameraActive,
+  syncPreviewCameraAspect,
   updatePreviewCameraZoom,
 } from './arScene.js'
 
@@ -123,6 +124,40 @@ const partitionGuide = {
 const modelTransform = {
   rotationY: 28,
   zoom: 1.15,
+}
+
+function syncPreviewCameraViewport() {
+  const scene = document.querySelector('a-scene')
+
+  if (!elements.overflowMode.checked) {
+    scene?.resize?.()
+    syncPreviewCameraAspect(elements.previewCamera, scene)
+  }
+}
+
+function installPreviewCameraRenderGuard(scene) {
+  const renderer = scene?.renderer
+
+  if (!renderer || renderer.__previewCameraRenderGuardInstalled) return
+
+  const originalRender = renderer.render
+
+  renderer.render = function (renderedScene, renderedCamera) {
+    const previewCamera = elements.previewCamera.components?.camera?.camera
+    const isPreviewCameraRenderOutsideVerification = (
+      !elements.overflowMode.checked &&
+      renderedCamera === previewCamera &&
+      scene.camera === previewCamera
+    )
+
+    if (isPreviewCameraRenderOutsideVerification) {
+      syncPreviewCameraAspect(elements.previewCamera, scene)
+    }
+
+    return originalRender.call(this, renderedScene, renderedCamera)
+  }
+
+  renderer.__previewCameraRenderGuardInstalled = true
 }
 
 let nextShapeId = 1
@@ -522,6 +557,12 @@ function updateModelPreview({ syncInputs = true } = {}) {
   renderModelVolume()
   updateGeneratedModel(elements.modelPreview, modelShapes, modelTransform)
   updatePreviewCameraZoom(elements.previewCamera, modelTransform.zoom)
+  if (elements.modelMode.checked) {
+    syncPreviewCameraAspect(
+      elements.previewCamera,
+      document.querySelector('a-scene'),
+    )
+  }
 }
 
 function selectShape(index) {
@@ -1576,6 +1617,12 @@ elements.partitionSliders.addEventListener('keydown', adjustPartitionWithKeyboar
 window.addEventListener('pointermove', updatePartitionPositionFromPointer)
 window.addEventListener('pointerup', stopPartitionDrag)
 window.addEventListener('pointercancel', stopPartitionDrag)
+window.addEventListener('resize', () => {
+  window.requestAnimationFrame(syncPreviewCameraViewport)
+})
+window.addEventListener('orientationchange', () => {
+  window.requestAnimationFrame(syncPreviewCameraViewport)
+})
 elements.thinkingNextButton.addEventListener('click', goToThinkingNextStep)
 elements.thinkingPrevButton.addEventListener('click', goToThinkingPreviousStep)
 window.addEventListener('load', () => {
@@ -1583,4 +1630,16 @@ window.addEventListener('load', () => {
   renderThinkingSidebar()
   renderThinkingGoalFlow()
   renderThinkingModelFlow()
+  const scene = document.querySelector('a-scene')
+  const syncAfterSceneReady = () => {
+    installPreviewCameraRenderGuard(scene)
+    window.requestAnimationFrame(syncPreviewCameraViewport)
+  }
+
+  if (scene?.hasLoaded) {
+    syncAfterSceneReady()
+  } else {
+    scene?.addEventListener('loaded', syncAfterSceneReady, { once: true })
+  }
+
 })

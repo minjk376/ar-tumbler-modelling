@@ -654,7 +654,7 @@
   >
     <a-entity
       id="previewCamera"
-      camera="active: true; type: orthographic; zoom: 1.15"
+      camera="active: true; zoom: 1.15"
       position="0 1.15 3"
       rotation="-20 0 0">
     </a-entity>
@@ -758,7 +758,6 @@
       const setPreviewCameraActive = (cameraElement, isActive) => {
         cameraElement?.setAttribute('camera', {
           active: isActive,
-          type: 'orthographic',
         })
       }
 
