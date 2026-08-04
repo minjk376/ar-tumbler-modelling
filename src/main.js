@@ -55,6 +55,16 @@ const elements = {
   partitionGuides: document.getElementById('partitionGuides'),
   previewCamera: document.getElementById('previewCamera'),
   arCamera: document.getElementById('arCamera'),
+  modelingResultScreen: document.getElementById('modelingResultScreen'),
+  showModelingResultButton: document.getElementById('showModelingResultButton'),
+  backFromModelingResultButton: document.getElementById('backFromModelingResultButton'),
+  printModelingResultButton: document.getElementById('printModelingResultButton'),
+  modelingResultGoal: document.getElementById('modelingResultGoal'),
+  modelingResultReason: document.getElementById('modelingResultReason'),
+  modelingResultShapes: document.getElementById('modelingResultShapes'),
+  modelingResultCalculations: document.getElementById('modelingResultCalculations'),
+  modelingResultStudentTotal: document.getElementById('modelingResultStudentTotal'),
+  modelingResultProgramTotal: document.getElementById('modelingResultProgramTotal'),
   thinkingSidebar: document.getElementById('thinkingSidebar'),
   thinkingSidebarToggle: document.getElementById('thinkingSidebarToggle'),
   thinkingGoalMenu: document.getElementById('thinkingGoalMenu'),
@@ -64,6 +74,7 @@ const elements = {
   goalDrinkPanel: document.getElementById('goalDrinkPanel'),
   goalVolumePanel: document.getElementById('goalVolumePanel'),
   goalConditionPanel: document.getElementById('goalConditionPanel'),
+  goalTumblerPanel: document.getElementById('goalTumblerPanel'),
   customDrinkTypeLabel: document.getElementById('customDrinkTypeLabel'),
   customDrinkTypeInput: document.getElementById('customDrinkTypeInput'),
   customVolumeLabel: document.getElementById('customVolumeLabel'),
@@ -101,6 +112,7 @@ const elements = {
   goalDrinkTypeInputs: Array.from(document.querySelectorAll('input[name="goalDrinkType"]')),
   goalTargetVolumeInputs: Array.from(document.querySelectorAll('input[name="goalTargetVolume"]')),
   goalExtraConditionInputs: Array.from(document.querySelectorAll('input[name="goalExtraCondition"]')),
+  goalTumblerTypeInputs: Array.from(document.querySelectorAll('input[name="goalTumblerType"]')),
   partCountInputs: Array.from(document.querySelectorAll('input[name="partCount"]')),
   basicShapeAnswerInputs: Array.from(document.querySelectorAll('input[name="basicShapeAnswer"]')),
   sideViewShapeInputs: Array.from(document.querySelectorAll('input[name="sideViewShape"]')),
@@ -166,13 +178,40 @@ let modelShapes = []
 let overflowEffectTimer = null
 let partitionFadeTimer = null
 let activePartitionDrag = null
+const TUMBLER_DATA = {
+  basic: {
+    id: 'basic',
+    nameKo: 'Basic 베이직',
+    actualCapacityMl: 381.65,
+  },
+  trail: {
+    id: 'trail',
+    nameKo: 'Trail 트레일',
+    actualCapacityMl: 700,
+  },
+  flow: {
+    id: 'flow',
+    nameKo: 'Flow 플로우',
+    actualCapacityMl: 500,
+  },
+}
+const defaultGoalSelectionStatus = {
+  drinkType: false,
+  targetVolumeMl: false,
+  extraCondition: false,
+  tumblerType: false,
+}
 const defaultGoalSettings = {
   drinkType: '',
   customDrinkType: '',
   targetVolumeMl: 500,
   extraCondition: '',
   customExtraCondition: '',
+  tumblerType: '',
+  selectionStatus: { ...defaultGoalSelectionStatus },
+  isCompleted: false,
 }
+const goalActivityId = getGoalActivityId()
 let goalSettings = loadGoalSettings()
 const thinkingState = {
   isOpen: false,
@@ -339,6 +378,233 @@ function getShapeName(shape) {
   return '원기둥'
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+}
+
+function formatResultNumber(value) {
+  return String(Number(Number(value).toFixed(6)))
+}
+
+function getResultGoalText(value, customValue) {
+  return value === '기타' ? customValue.trim() || '-' : value || '-'
+}
+
+function getCompletedGoalText(isSelected, value) {
+  return isSelected && value && value !== '-' ? value : '선택하지 않음'
+}
+
+function getResultShapeDimensions(shape) {
+  if (shape.type === 'frustum') {
+    return [
+      `윗면 반지름 ${formatResultNumber(shape.topRadius)} cm`,
+      `아랫면 반지름 ${formatResultNumber(shape.bottomRadius)} cm`,
+      `높이 ${formatResultNumber(shape.height)} cm`,
+    ]
+  }
+
+  return [
+    `반지름 ${formatResultNumber(shape.radius)} cm`,
+    `높이 ${formatResultNumber(shape.height)} cm`,
+  ]
+}
+
+function getResultShapeRadius(shape) {
+  return shape.type === 'frustum'
+    ? Math.max(shape.topRadius, shape.bottomRadius)
+    : shape.radius
+}
+
+function getResultShapeVisualMetrics(shape, scale) {
+  const maxRadius = getResultShapeRadius(shape)
+  const width = maxRadius * 2 * scale
+  const height = shape.height * scale
+  const topRadius = shape.type === 'frustum'
+    ? shape.topRadius
+    : shape.type === 'cone' ? 0 : shape.radius
+  const bottomRadius = shape.type === 'frustum'
+    ? shape.bottomRadius
+    : shape.radius
+  const topRatio = maxRadius > 0 ? topRadius / maxRadius : 0
+  const bottomRatio = maxRadius > 0 ? bottomRadius / maxRadius : 0
+  const topInset = (1 - topRatio) * 50
+  const bottomInset = (1 - bottomRatio) * 50
+
+  return {
+    container: `width:${width}px;height:${height}px`,
+    body: `clip-path:polygon(${topInset}% 0, ${100 - topInset}% 0, ${100 - bottomInset}% 100%, ${bottomInset}% 100%)`,
+    topCap: `width:${Math.max(topRadius * 2 * scale, 3)}px`,
+  }
+}
+
+function renderModelingResult() {
+  const activityState = window.getActivityResultState?.() ?? {
+    studentCalculations: {},
+    decisionReason: '',
+  }
+  const tumbler = TUMBLER_DATA[goalSettings.tumblerType]
+  const goalSelection = goalSettings.selectionStatus
+  const drinkType = getResultGoalText(goalSettings.drinkType, goalSettings.customDrinkType)
+  const extraCondition = getResultGoalText(goalSettings.extraCondition, goalSettings.customExtraCondition)
+  const goalRows = [
+    ['주로 담을 음료', getCompletedGoalText(goalSelection.drinkType, drinkType)],
+    [
+      '목표 용량',
+      getCompletedGoalText(
+        goalSelection.targetVolumeMl && goalSettings.targetVolumeMl > 0,
+        `${formatResultNumber(goalSettings.targetVolumeMl)} mL`,
+      ),
+    ],
+    ['용량 외 추가 조건', getCompletedGoalText(goalSelection.extraCondition, extraCondition)],
+    ['선택한 텀블러', getCompletedGoalText(goalSelection.tumblerType, tumbler?.nameKo)],
+  ]
+
+  elements.modelingResultGoal.innerHTML = goalRows.map(([label, value]) => `
+    <div>
+      <dt>${escapeHtml(label)}</dt>
+      <dd>${escapeHtml(value)}</dd>
+    </div>
+  `).join('')
+
+  elements.modelingResultReason.textContent = String(activityState.decisionReason ?? '').trim()
+    || '작성된 판단 근거가 없습니다.'
+
+  const displayedShapes = [...modelShapes].reverse()
+  const maxModelDiameter = Math.max(
+    ...displayedShapes.map((shape) => getResultShapeRadius(shape) * 2),
+    1,
+  )
+  const totalModelHeight = Math.max(
+    displayedShapes.reduce((sum, shape) => sum + shape.height, 0),
+    1,
+  )
+  const modelDiagramScale = Math.min(150 / maxModelDiameter, 220 / totalModelHeight)
+
+  elements.modelingResultShapes.innerHTML = displayedShapes.length > 0
+    ? displayedShapes.map((shape, index) => {
+        const visual = getResultShapeVisualMetrics(shape, modelDiagramScale)
+        const overlap = index === 0 ? 0 : Math.min(7, shape.height * modelDiagramScale * 0.16)
+
+        return `
+        <article
+          class="result-model-part result-model-color-${index % 3}"
+          style="height:${shape.height * modelDiagramScale}px;margin-top:-${overlap}px;z-index:${displayedShapes.length - index}">
+          <div class="result-model-part-graphic">
+            <div class="result-model-shape" style="${visual.container}">
+              <div class="result-model-shape-body" style="${visual.body}"></div>
+              <div
+                class="result-model-cap result-model-cap-top ${index === 0 ? 'result-model-cap-surface' : 'result-model-cap-connection'}"
+                style="${visual.topCap}">
+              </div>
+            </div>
+          </div>
+          <div class="result-model-part-label">
+            <strong>${index + 1}. ${escapeHtml(getShapeName(shape))}</strong>
+            <span>${getResultShapeDimensions(shape).map(escapeHtml).join(' · ')}</span>
+          </div>
+        </article>
+      `
+      }).join('')
+    : '<p class="result-empty">생성한 도형이 없습니다.</p>'
+
+  let studentTotal = 0
+  elements.modelingResultCalculations.innerHTML = displayedShapes.length > 0
+    ? displayedShapes.map((shape, index) => {
+        const calculation = activityState.studentCalculations?.[String(shape.id)]
+        const hasSavedVolume = Number.isFinite(calculation?.volume)
+
+        if (hasSavedVolume) studentTotal += calculation.volume
+
+        return `
+          <article class="result-calculation-item">
+            <div>
+              <strong>${index + 1}. ${escapeHtml(getShapeName(shape))}</strong>
+              <span>${calculation?.formula ? escapeHtml(calculation.formula) : '저장된 계산식 없음'}</span>
+            </div>
+            <b>${hasSavedVolume ? `${calculation.volume.toFixed(1)} mL` : '저장된 계산 결과 없음'}</b>
+          </article>
+        `
+      }).join('')
+    : '<p class="result-empty">표시할 부피 계산 결과가 없습니다.</p>'
+
+  elements.modelingResultStudentTotal.textContent = `${studentTotal.toFixed(1)} mL`
+  elements.modelingResultProgramTotal.textContent = `${calculateModelVolume().toFixed(1)} mL`
+}
+
+function showModelingResult() {
+  renderModelingResult()
+  elements.modelingResultScreen.hidden = false
+  document.body.classList.add('showing-modeling-result')
+  elements.modelingResultScreen.scrollTop = 0
+}
+
+function hideModelingResult() {
+  elements.modelingResultScreen.hidden = true
+  document.body.classList.remove('showing-modeling-result')
+}
+
+async function saveModelingResultPdf() {
+  const resultSheet = elements.modelingResultScreen.querySelector('.modeling-result-sheet')
+  const button = elements.printModelingResultButton
+  const originalButtonText = button.textContent
+
+  button.disabled = true
+  button.textContent = 'PDF 만드는 중...'
+  elements.modelingResultScreen.classList.add('is-exporting-pdf')
+
+  try {
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ])
+    await document.fonts?.ready
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+
+    const canvas = await html2canvas(resultSheet, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      ignoreElements: (element) => element.classList?.contains('modeling-result-actions'),
+    })
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true })
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 7
+    const availableWidth = pageWidth - margin * 2
+    const availableHeight = pageHeight - margin * 2
+    const scale = Math.min(availableWidth / canvas.width, availableHeight / canvas.height)
+    const imageWidth = canvas.width * scale
+    const imageHeight = canvas.height * scale
+    const imageX = (pageWidth - imageWidth) / 2
+    const imageY = (pageHeight - imageHeight) / 2
+
+    pdf.addImage(
+      canvas.toDataURL('image/jpeg', 0.96),
+      'JPEG',
+      imageX,
+      imageY,
+      imageWidth,
+      imageHeight,
+      undefined,
+      'FAST',
+    )
+    pdf.save('AR-모델링-결과.pdf')
+  } catch (error) {
+    console.error('모델링 결과 PDF 저장 실패', error)
+    window.alert('PDF를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+  } finally {
+    elements.modelingResultScreen.classList.remove('is-exporting-pdf')
+    button.disabled = false
+    button.textContent = originalButtonText
+  }
+}
+
 function readModelShape() {
   const height = readNumber(elements.modelHeight)
 
@@ -425,7 +691,8 @@ function renderShapeList() {
           <button
             class="shape-list-item${selectedClass}${entranceClass}"
             type="button"
-            data-shape-index="${shapeIndex}">
+            data-shape-index="${shapeIndex}"
+            data-shape-id="${shape.id}">
             <span>${displayIndex + 1}. ${getShapeName(shape)}</span>
             ${entranceLabel}
           </button>
@@ -480,15 +747,17 @@ function renderModelVolume() {
 function renderOverflowVerification() {
   const verification = getOverflowVerificationInfo()
   const studentSavedVolumeTotal = window.getStudentSavedVolumeTotal?.() ?? 0
-  const studentSavedVolumeText = Number.isFinite(studentSavedVolumeTotal)
-    ? studentSavedVolumeTotal.toFixed(1)
-    : '0.0'
+  const studentSavedVolumeText = (
+    Number.isFinite(studentSavedVolumeTotal) && studentSavedVolumeTotal > 0
+      ? `${studentSavedVolumeTotal.toFixed(1)} mL`
+      : '아직 저장한 부피 계산 결과가 없습니다.'
+  )
 
   if (!verification.entrance) {
     elements.result.innerHTML = '<div class="safe">모델 없음</div>'
     elements.volumeInfo.hidden = false
     elements.volumeInfo.innerHTML = `
-      <b>전체 부피 계산 결과</b>: ${studentSavedVolumeText} mL<br>
+      <b>내가 계산한 전체 부피</b>: ${studentSavedVolumeText}<br>
       <b>음료량</b>: ${verification.drinkVolume.toFixed(1)} mL<br>
       모델을 먼저 생성해 주세요.
     `
@@ -496,12 +765,14 @@ function renderOverflowVerification() {
   }
 
   const resultClass = verification.overflows ? 'overflow' : 'safe'
-  const resultText = verification.overflows ? '넘침' : '담을 수 있음'
+  const resultText = verification.overflows
+    ? '내가 만든 모델에서는 넘침'
+    : '내가 만든 모델에 담을 수 있음'
 
   elements.result.innerHTML = `<div class="${resultClass}">${resultText}</div>`
   elements.volumeInfo.hidden = false
   elements.volumeInfo.innerHTML = `
-    <b>전체 부피 계산 결과</b>: ${studentSavedVolumeText} mL<br>
+    <b>내가 계산한 전체 부피</b>: ${studentSavedVolumeText}<br>
     <b>음료량</b>: ${verification.drinkVolume.toFixed(1)} mL<br>
     <b>입구</b>: ${verification.entrance.displayNumber}번 ${getShapeName(verification.entrance.shape)}의 윗면
     <small>입구 반지름 ${verification.entrance.radius} cm</small>
@@ -644,25 +915,56 @@ function renderThinkingSidebar() {
   elements.thinkingSidebarToggle.setAttribute('aria-expanded', String(thinkingState.isOpen))
 }
 
+function getGoalActivityId() {
+  const sessionKey = 'arTumblerGoalActivityId'
+  let activityId = sessionStorage.getItem(sessionKey)
+
+  if (!activityId) {
+    activityId = globalThis.crypto?.randomUUID?.()
+      ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    sessionStorage.setItem(sessionKey, activityId)
+  }
+
+  return activityId
+}
+
 function loadGoalSettings() {
   try {
     const savedSettings = JSON.parse(localStorage.getItem('goalSettings') || '{}')
+
+    if (savedSettings.activityId !== goalActivityId) {
+      return {
+        ...defaultGoalSettings,
+        selectionStatus: { ...defaultGoalSelectionStatus },
+      }
+    }
+
     const targetVolumeMl = Number(savedSettings.targetVolumeMl)
 
     return {
       ...defaultGoalSettings,
       ...savedSettings,
+      selectionStatus: {
+        ...defaultGoalSelectionStatus,
+        ...savedSettings.selectionStatus,
+      },
       targetVolumeMl: Number.isFinite(targetVolumeMl) && targetVolumeMl > 0
         ? targetVolumeMl
         : defaultGoalSettings.targetVolumeMl,
     }
   } catch {
-    return { ...defaultGoalSettings }
+    return {
+      ...defaultGoalSettings,
+      selectionStatus: { ...defaultGoalSelectionStatus },
+    }
   }
 }
 
 function saveGoalSettings() {
-  localStorage.setItem('goalSettings', JSON.stringify(goalSettings))
+  localStorage.setItem('goalSettings', JSON.stringify({
+    ...goalSettings,
+    activityId: goalActivityId,
+  }))
 }
 
 function isCustomGoalVolume() {
@@ -675,21 +977,30 @@ function isCustomGoalVolume() {
 function isGoalStepReady() {
   if (thinkingState.goalStep === 1) {
     return (
+      goalSettings.selectionStatus.drinkType &&
       Boolean(goalSettings.drinkType) &&
       (goalSettings.drinkType !== '기타' || Boolean(goalSettings.customDrinkType.trim()))
     )
   }
 
   if (thinkingState.goalStep === 2) {
-    return goalSettings.targetVolumeMl > 0
+    return goalSettings.selectionStatus.targetVolumeMl && goalSettings.targetVolumeMl > 0
+  }
+
+  if (thinkingState.goalStep === 3) {
+    return (
+      goalSettings.selectionStatus.extraCondition &&
+      Boolean(goalSettings.extraCondition) &&
+      (
+        goalSettings.extraCondition !== '기타' ||
+        Boolean(goalSettings.customExtraCondition.trim())
+      )
+    )
   }
 
   return (
-    Boolean(goalSettings.extraCondition) &&
-    (
-      goalSettings.extraCondition !== '기타' ||
-      Boolean(goalSettings.customExtraCondition.trim())
-    )
+    goalSettings.selectionStatus.tumblerType &&
+    Boolean(TUMBLER_DATA[goalSettings.tumblerType])
   )
 }
 
@@ -705,10 +1016,11 @@ function renderThinkingMenu() {
 function renderThinkingGoalFlow() {
   renderThinkingMenu()
 
-  elements.goalProgress.textContent = `목표 설정 ${thinkingState.goalStep}/3`
+  elements.goalProgress.textContent = `목표 설정 ${thinkingState.goalStep}/4`
   elements.goalDrinkPanel.hidden = thinkingState.goalStep !== 1
   elements.goalVolumePanel.hidden = thinkingState.goalStep !== 2
   elements.goalConditionPanel.hidden = thinkingState.goalStep !== 3
+  elements.goalTumblerPanel.hidden = thinkingState.goalStep !== 4
   elements.customDrinkTypeLabel.hidden = goalSettings.drinkType !== '기타'
   elements.customVolumeLabel.hidden = !isCustomGoalVolume()
   elements.customExtraConditionLabel.hidden = goalSettings.extraCondition !== '기타'
@@ -723,18 +1035,31 @@ function renderThinkingGoalFlow() {
   elements.goalNextButton.disabled = thinkingState.isGoalCompleted || !isGoalStepReady()
   elements.goalNextButton.textContent = thinkingState.isGoalCompleted
     ? '완료됨'
-    : thinkingState.goalStep === 3 ? '완료' : '다음'
+    : thinkingState.goalStep === 4 ? '완료' : '다음'
 
   elements.goalDrinkTypeInputs.forEach((input) => {
-    input.checked = input.value === goalSettings.drinkType
+    input.checked = (
+      goalSettings.selectionStatus.drinkType &&
+      input.value === goalSettings.drinkType
+    )
   })
   elements.goalTargetVolumeInputs.forEach((input) => {
-    input.checked = input.value === (
-      isCustomGoalVolume() ? 'custom' : String(goalSettings.targetVolumeMl)
+    input.checked = (
+      goalSettings.selectionStatus.targetVolumeMl &&
+      input.value === (isCustomGoalVolume() ? 'custom' : String(goalSettings.targetVolumeMl))
     )
   })
   elements.goalExtraConditionInputs.forEach((input) => {
-    input.checked = input.value === goalSettings.extraCondition
+    input.checked = (
+      goalSettings.selectionStatus.extraCondition &&
+      input.value === goalSettings.extraCondition
+    )
+  })
+  elements.goalTumblerTypeInputs.forEach((input) => {
+    input.checked = (
+      goalSettings.selectionStatus.tumblerType &&
+      input.value === goalSettings.tumblerType
+    )
   })
 }
 
@@ -1210,7 +1535,6 @@ function createRealityModelFromDecisions() {
 
   const heights = getRealityModelHeightEstimates()
 
-  nextShapeId = 1
   modelShapes = thinkingState.partDecisions.map((decision, index) => (
     createRealityModelShape(decision, heights[index] ?? DEFAULT_GENERATED_MODEL_HEIGHT)
   ))
@@ -1275,6 +1599,11 @@ function selectGoalDrinkType(event) {
   goalSettings = {
     ...goalSettings,
     drinkType: event.target.value,
+    isCompleted: false,
+    selectionStatus: {
+      ...goalSettings.selectionStatus,
+      drinkType: true,
+    },
   }
   saveGoalSettings()
   renderThinkingGoalFlow()
@@ -1285,6 +1614,11 @@ function updateCustomDrinkType(event) {
   goalSettings = {
     ...goalSettings,
     customDrinkType: event.target.value,
+    isCompleted: false,
+    selectionStatus: {
+      ...goalSettings.selectionStatus,
+      drinkType: true,
+    },
   }
   saveGoalSettings()
   renderThinkingGoalFlow()
@@ -1301,6 +1635,11 @@ function selectGoalTargetVolume(event) {
   goalSettings = {
     ...goalSettings,
     targetVolumeMl,
+    isCompleted: false,
+    selectionStatus: {
+      ...goalSettings.selectionStatus,
+      targetVolumeMl: true,
+    },
   }
   saveGoalSettings()
   renderThinkingGoalFlow()
@@ -1314,6 +1653,11 @@ function updateCustomGoalVolume(event) {
   goalSettings = {
     ...goalSettings,
     targetVolumeMl: Number.isFinite(targetVolumeMl) ? targetVolumeMl : 0,
+    isCompleted: false,
+    selectionStatus: {
+      ...goalSettings.selectionStatus,
+      targetVolumeMl: true,
+    },
   }
   saveGoalSettings()
   renderThinkingGoalFlow()
@@ -1324,6 +1668,11 @@ function selectGoalExtraCondition(event) {
   goalSettings = {
     ...goalSettings,
     extraCondition: event.target.value,
+    isCompleted: false,
+    selectionStatus: {
+      ...goalSettings.selectionStatus,
+      extraCondition: true,
+    },
   }
   saveGoalSettings()
   renderThinkingGoalFlow()
@@ -1334,6 +1683,26 @@ function updateCustomExtraCondition(event) {
   goalSettings = {
     ...goalSettings,
     customExtraCondition: event.target.value,
+    isCompleted: false,
+    selectionStatus: {
+      ...goalSettings.selectionStatus,
+      extraCondition: true,
+    },
+  }
+  saveGoalSettings()
+  renderThinkingGoalFlow()
+}
+
+function selectGoalTumblerType(event) {
+  thinkingState.isGoalCompleted = false
+  goalSettings = {
+    ...goalSettings,
+    tumblerType: event.target.value,
+    isCompleted: false,
+    selectionStatus: {
+      ...goalSettings.selectionStatus,
+      tumblerType: true,
+    },
   }
   saveGoalSettings()
   renderThinkingGoalFlow()
@@ -1344,20 +1713,31 @@ function goToGoalNextStep() {
     return
   }
 
-  if (thinkingState.goalStep === 3) {
+  if (thinkingState.goalStep === 4) {
     thinkingState.isGoalCompleted = true
+    goalSettings = {
+      ...goalSettings,
+      isCompleted: true,
+    }
     saveGoalSettings()
     renderThinkingGoalFlow()
     return
   }
 
-  thinkingState.goalStep = Math.min(thinkingState.goalStep + 1, 3)
+  thinkingState.goalStep = Math.min(thinkingState.goalStep + 1, 4)
   saveGoalSettings()
   renderThinkingGoalFlow()
 }
 
 function goToGoalPreviousStep() {
   thinkingState.isGoalCompleted = false
+  if (goalSettings.isCompleted) {
+    goalSettings = {
+      ...goalSettings,
+      isCompleted: false,
+    }
+    saveGoalSettings()
+  }
   thinkingState.goalStep = Math.max(thinkingState.goalStep - 1, 1)
   renderThinkingGoalFlow()
 }
@@ -1589,6 +1969,9 @@ elements.goalTargetVolumeInputs.forEach((input) => {
 elements.goalExtraConditionInputs.forEach((input) => {
   input.addEventListener('change', selectGoalExtraCondition)
 })
+elements.goalTumblerTypeInputs.forEach((input) => {
+  input.addEventListener('change', selectGoalTumblerType)
+})
 elements.customDrinkTypeInput.addEventListener('input', updateCustomDrinkType)
 elements.customVolumeInput.addEventListener('input', updateCustomGoalVolume)
 elements.customExtraConditionInput.addEventListener('input', updateCustomExtraCondition)
@@ -1625,6 +2008,9 @@ window.addEventListener('orientationchange', () => {
 })
 elements.thinkingNextButton.addEventListener('click', goToThinkingNextStep)
 elements.thinkingPrevButton.addEventListener('click', goToThinkingPreviousStep)
+elements.showModelingResultButton?.addEventListener('click', showModelingResult)
+elements.backFromModelingResultButton?.addEventListener('click', hideModelingResult)
+elements.printModelingResultButton?.addEventListener('click', saveModelingResultPdf)
 window.addEventListener('load', () => {
   setMode(modes.model)
   renderThinkingSidebar()

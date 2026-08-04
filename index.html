@@ -239,7 +239,7 @@
       </nav>
 
       <section id="thinkingGoalFlow" class="thinking-flow" aria-live="polite" hidden>
-        <div id="goalProgress" class="thinking-progress">목표 설정 1/3</div>
+        <div id="goalProgress" class="thinking-progress">목표 설정 1/4</div>
 
         <div id="goalDrinkPanel" class="goal-question">
           <h3>주로 어떤 음료를 담을 텀블러인가요?</h3>
@@ -324,6 +324,24 @@
             직접 입력
             <input id="customExtraConditionInput" type="text" autocomplete="off" />
           </label>
+        </div>
+
+        <div id="goalTumblerPanel" class="goal-question" hidden>
+          <h3>지금까지 설정한 목표에 가장 적합한 텀블러를 선택해 보세요.</h3>
+          <div class="thinking-options" role="radiogroup" aria-label="목표에 적합한 텀블러">
+            <label>
+              <input type="radio" name="goalTumblerType" value="basic" />
+              Basic 베이직
+            </label>
+            <label>
+              <input type="radio" name="goalTumblerType" value="trail" />
+              Trail 트레일
+            </label>
+            <label>
+              <input type="radio" name="goalTumblerType" value="flow" />
+              Flow 플로우
+            </label>
+          </div>
         </div>
 
         <div class="thinking-actions">
@@ -504,6 +522,7 @@
           </ul>
           <div class="thinking-options">
             <button id="confirmFinalModelButton" type="button">이 모델로 결정하기</button>
+            <button id="showModelingResultButton" type="button">모델링 결과 보기</button>
             <button id="resetGoalFromVerificationButton" type="button">목표 다시 설정하기</button>
             <button id="resetModelFromVerificationButton" type="button">모델 다시 생성하기</button>
             <button id="recalculateVolumeFromVerificationButton" type="button">부피 다시 계산하기</button>
@@ -646,6 +665,56 @@
     </div>
   </aside>
 
+  <main id="modelingResultScreen" class="modeling-result-screen" aria-labelledby="modelingResultTitle" hidden>
+    <div class="modeling-result-sheet">
+      <header class="modeling-result-header">
+        <div>
+          <p class="modeling-result-eyebrow">당신의 라이프스타일에 맞는 텀블러</p>
+          <h1 id="modelingResultTitle">AR 모델링 결과</h1>
+        </div>
+      </header>
+
+      <div class="modeling-result-grid">
+        <section class="result-card" aria-labelledby="resultGoalTitle">
+          <h2 id="resultGoalTitle">나의 설계 목표</h2>
+          <dl id="modelingResultGoal" class="result-detail-list"></dl>
+        </section>
+
+        <section class="result-card result-model-card" aria-labelledby="resultModelTitle">
+          <h2 id="resultModelTitle">나의 모델</h2>
+          <div id="modelingResultShapes" class="result-model-visual"></div>
+        </section>
+
+        <div class="result-analysis-column">
+          <section class="result-card" aria-labelledby="resultVolumeTitle">
+            <h2 id="resultVolumeTitle">부피 계산 결과</h2>
+            <div id="modelingResultCalculations" class="result-calculation-list"></div>
+            <dl class="result-volume-totals">
+              <div class="result-total-student">
+                <dt>내가 계산한 전체 부피</dt>
+                <dd id="modelingResultStudentTotal">0.0 mL</dd>
+              </div>
+              <div class="result-total-program">
+                <dt>프로그램이 계산한 모델 부피</dt>
+                <dd id="modelingResultProgramTotal">0.0 mL</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="result-card result-reason-card" aria-labelledby="resultReasonTitle">
+            <h2 id="resultReasonTitle">판단 근거</h2>
+            <p id="modelingResultReason" class="result-reason"></p>
+          </section>
+        </div>
+      </div>
+
+      <footer class="modeling-result-actions">
+        <button id="backFromModelingResultButton" type="button">이전 단계로 돌아가기</button>
+        <button id="printModelingResultButton" type="button">PDF로 저장</button>
+      </footer>
+    </div>
+  </main>
+
   <a-scene
     embedded
     arjs="sourceType: webcam;"
@@ -749,7 +818,28 @@
       const volumeFormulaResult = document.getElementById('volumeFormulaResult')
       const studentVolumeInfo = document.getElementById('studentVolumeInfo')
       const studentVolumes = {}
+      const studentFormulas = {}
+      const activityResultState = {
+        studentVolumes,
+        studentFormulas,
+        finalDecision: '',
+        decisionReason: '',
+      }
       let latestFormulaResult = null
+      let latestFormulaExpression = ''
+
+      window.getActivityResultState = () => ({
+        studentCalculations: Object.fromEntries(
+          getShapeItems()
+            .filter(({ shapeId }) => Number.isFinite(studentVolumes[shapeId]))
+            .map(({ shapeId }) => [shapeId, {
+              formula: studentFormulas[shapeId] ?? '',
+              volume: studentVolumes[shapeId],
+            }]),
+        ),
+        finalDecision: activityResultState.finalDecision,
+        decisionReason: activityResultState.decisionReason,
+      })
 
       if (!volumeModeInput || !volumeControls) {
         return
@@ -772,7 +862,12 @@
           const match = button.textContent.trim().replace(/\s+/g, ' ').match(/^(\d+)\.\s*(원기둥|원뿔대|원뿔)/)
 
           return match
-            ? { number: match[1], name: match[2], shapeIndex: button.dataset.shapeIndex }
+            ? {
+                number: match[1],
+                name: match[2],
+                shapeIndex: button.dataset.shapeIndex,
+                shapeId: button.dataset.shapeId,
+              }
             : null
         })
         .filter(Boolean)
@@ -798,12 +893,12 @@
 
       const renderStudentVolumeInfo = () => {
         const shapeItems = getShapeItems()
-        const savedTotal = shapeItems.reduce((sum, { shapeIndex }) => (
-          Number.isFinite(studentVolumes[shapeIndex]) ? sum + studentVolumes[shapeIndex] : sum
+        const savedTotal = shapeItems.reduce((sum, { shapeId }) => (
+          Number.isFinite(studentVolumes[shapeId]) ? sum + studentVolumes[shapeId] : sum
         ), 0)
         const savedRows = shapeItems.length > 0
-          ? shapeItems.map(({ number, name, shapeIndex }) => {
-            const savedVolume = studentVolumes[shapeIndex]
+          ? shapeItems.map(({ number, name, shapeId }) => {
+            const savedVolume = studentVolumes[shapeId]
             const valueText = Number.isFinite(savedVolume) ? formatMl(savedVolume) : '계산 전'
 
             return `${number}. ${name} : ${valueText}`
@@ -822,8 +917,8 @@
       }
 
       window.getStudentSavedVolumeTotal = () => (
-        getShapeItems().reduce((sum, { shapeIndex }) => (
-          Number.isFinite(studentVolumes[shapeIndex]) ? sum + studentVolumes[shapeIndex] : sum
+        getShapeItems().reduce((sum, { shapeId }) => (
+          Number.isFinite(studentVolumes[shapeId]) ? sum + studentVolumes[shapeId] : sum
         ), 0)
       )
 
@@ -914,6 +1009,7 @@
 
       const showFormulaError = () => {
         latestFormulaResult = null
+        latestFormulaExpression = ''
         setSaveStudentVolumeEnabled(false)
 
         if (volumeFormulaResult) {
@@ -952,6 +1048,7 @@
           }
 
           latestFormulaResult = result
+          latestFormulaExpression = formula
           setSaveStudentVolumeEnabled(true)
         } catch {
           showFormulaError()
@@ -960,13 +1057,14 @@
 
       const saveStudentVolume = () => {
         const selectedShapeButton = getSelectedShapeButton()
-        const shapeIndex = selectedShapeButton?.dataset.shapeIndex
+        const shapeId = selectedShapeButton?.dataset.shapeId
 
-        if (!shapeIndex || !Number.isFinite(latestFormulaResult)) {
+        if (!shapeId || !latestFormulaExpression || !Number.isFinite(latestFormulaResult)) {
           return
         }
 
-        studentVolumes[shapeIndex] = latestFormulaResult
+        studentVolumes[shapeId] = latestFormulaResult
+        studentFormulas[shapeId] = latestFormulaExpression
         renderStudentVolumeInfo()
       }
 
@@ -1096,6 +1194,7 @@
       const verificationGoalSummary = document.getElementById('verificationGoalSummary')
       const verificationFinalTargetVolume = document.getElementById('verificationFinalTargetVolume')
       const verificationFinalExtraCondition = document.getElementById('verificationFinalExtraCondition')
+      const verificationComparisonInput = document.getElementById('verificationComparisonInput')
       const verificationNextButton = document.getElementById('verificationNextButton')
       const verificationStepTwoPrevButton = document.getElementById('verificationStepTwoPrevButton')
       const verificationStepTwoNextButton = document.getElementById('verificationStepTwoNextButton')
@@ -1731,14 +1830,26 @@
       })
 
       confirmFinalModelButton?.addEventListener('click', () => {
+        activityResultState.finalDecision = '최종안으로 선택'
         if (finalModelDecisionMessage) finalModelDecisionMessage.hidden = false
       })
 
-      resetGoalFromVerificationButton?.addEventListener('click', goToGoalFirstStep)
+      verificationComparisonInput?.addEventListener('input', (event) => {
+        activityResultState.decisionReason = event.target.value
+      })
 
-      resetModelFromVerificationButton?.addEventListener('click', goToModelFirstStep)
+      resetGoalFromVerificationButton?.addEventListener('click', () => {
+        activityResultState.finalDecision = '수정 필요'
+        goToGoalFirstStep()
+      })
+
+      resetModelFromVerificationButton?.addEventListener('click', () => {
+        activityResultState.finalDecision = '수정 필요'
+        goToModelFirstStep()
+      })
 
       recalculateVolumeFromVerificationButton?.addEventListener('click', () => {
+        activityResultState.finalDecision = '수정 필요'
         hideVerificationFlows()
         overflowModeInput?.click()
       })
