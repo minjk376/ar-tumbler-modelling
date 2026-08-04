@@ -676,42 +676,30 @@ button:active {
 }
 
 .result-model-shape {
-  position: relative;
+  display: block;
   flex: 0 0 auto;
-  box-sizing: border-box;
+  overflow: visible;
 }
 
 .result-model-shape-body {
-  position: absolute;
-  inset: 0;
-  border: 1px solid rgba(var(--shape-rgb), 0.88);
-  background: rgba(var(--shape-rgb), 0.52);
-  box-sizing: border-box;
+  fill: rgba(var(--shape-rgb), 0.3);
+  stroke: rgba(41, 65, 88, 0.78);
+  stroke-width: 1.15;
+  vector-effect: non-scaling-stroke;
 }
 
-.result-model-cap {
-  position: absolute;
-  left: 50%;
-  height: 9px;
-  border: 1px solid rgba(var(--shape-rgb), 0.9);
-  border-radius: 50%;
-  background: rgba(var(--shape-rgb), 0.38);
-  transform: translateX(-50%);
-  box-sizing: border-box;
+.result-model-top-surface {
+  fill: rgba(var(--shape-rgb), 0.18);
+  stroke: rgba(41, 65, 88, 0.78);
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
 }
 
-.result-model-cap-top {
-  top: -4px;
-}
-
-.result-model-cap-connection {
-  top: -2px;
-  height: 4px;
-  background: rgba(var(--shape-rgb), 0.28);
-}
-
-.result-model-cap-surface {
-  background: rgba(var(--shape-rgb), 0.44);
+.result-model-connection {
+  fill: none;
+  stroke: rgba(41, 65, 88, 0.3);
+  stroke-width: 0.75;
+  vector-effect: non-scaling-stroke;
 }
 
 .result-model-color-0 {
@@ -797,6 +785,42 @@ button:active {
   border: 1px solid #9aa9b8 !important;
   border-left: 4px solid #657a90 !important;
   background: #fff !important;
+}
+
+.result-tumbler-comparison {
+  display: grid !important;
+  gap: 6px !important;
+  padding: 8px 0 0 !important;
+  border-top: 1px solid #d7dee6 !important;
+}
+
+.result-comparison-metric {
+  padding: 7px 10px;
+  border-left: 4px solid #8b6f47;
+  background: #fbfaf7;
+}
+
+.result-comparison-metric dd {
+  margin-top: 2px;
+  color: #123c69;
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.result-comparison-metric dd span {
+  color: #536579;
+  font-size: 12px;
+}
+
+.result-comparison-evaluation,
+.result-comparison-unavailable {
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid #d7dee6;
+  background: #f7f8fa;
+  color: #34495e;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .result-empty {

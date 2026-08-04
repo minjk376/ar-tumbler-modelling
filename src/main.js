@@ -65,6 +65,7 @@ const elements = {
   modelingResultCalculations: document.getElementById('modelingResultCalculations'),
   modelingResultStudentTotal: document.getElementById('modelingResultStudentTotal'),
   modelingResultProgramTotal: document.getElementById('modelingResultProgramTotal'),
+  modelingResultTumblerComparison: document.getElementById('modelingResultTumblerComparison'),
   thinkingSidebar: document.getElementById('thinkingSidebar'),
   thinkingSidebarToggle: document.getElementById('thinkingSidebarToggle'),
   thinkingGoalMenu: document.getElementById('thinkingGoalMenu'),
@@ -194,6 +195,11 @@ const TUMBLER_DATA = {
     nameKo: 'Flow 플로우',
     actualCapacityMl: 500,
   },
+}
+const REAL_TUMBLER_VOLUMES = {
+  basic: 381.649053,
+  flow: 500.000000,
+  trail: 700.000000,
 }
 const defaultGoalSelectionStatus = {
   drinkType: false,
@@ -430,16 +436,69 @@ function getResultShapeVisualMetrics(shape, scale) {
   const bottomRadius = shape.type === 'frustum'
     ? shape.bottomRadius
     : shape.radius
-  const topRatio = maxRadius > 0 ? topRadius / maxRadius : 0
-  const bottomRatio = maxRadius > 0 ? bottomRadius / maxRadius : 0
-  const topInset = (1 - topRatio) * 50
-  const bottomInset = (1 - bottomRatio) * 50
+  const topWidth = topRadius * 2 * scale
+  const bottomWidth = bottomRadius * 2 * scale
+  const topX = (width - topWidth) / 2
+  const bottomX = (width - bottomWidth) / 2
+  const ellipseHeight = Math.min(8, Math.max(4, width * 0.075))
 
   return {
-    container: `width:${width}px;height:${height}px`,
-    body: `clip-path:polygon(${topInset}% 0, ${100 - topInset}% 0, ${100 - bottomInset}% 100%, ${bottomInset}% 100%)`,
-    topCap: `width:${Math.max(topRadius * 2 * scale, 3)}px`,
+    width,
+    height,
+    topWidth,
+    bottomWidth,
+    topX,
+    bottomX,
+    ellipseHeight,
   }
+}
+
+function renderResultShapeDiagram(shape, scale, { isTopShape }) {
+  const visual = getResultShapeVisualMetrics(shape, scale)
+  const width = Math.max(visual.width, 3)
+  const height = Math.max(visual.height, 1)
+  const topLeft = visual.topX
+  const topRight = visual.topX + visual.topWidth
+  const bottomLeft = visual.bottomX
+  const bottomRight = visual.bottomX + visual.bottomWidth
+  const topY = visual.ellipseHeight / 2
+  const path = `M ${topLeft} ${topY} L ${bottomLeft} ${height} L ${bottomRight} ${height} L ${topRight} ${topY} Z`
+  const topSurface = isTopShape && visual.topWidth > 3
+    ? `<ellipse class="result-model-top-surface" cx="${width / 2}" cy="${topY}" rx="${visual.topWidth / 2}" ry="${visual.ellipseHeight / 2}"></ellipse>`
+    : ''
+  const connection = !isTopShape && visual.topWidth > 3
+    ? `<path class="result-model-connection" d="M ${topLeft} ${topY} Q ${width / 2} ${topY + visual.ellipseHeight / 2} ${topRight} ${topY}"></path>`
+    : ''
+
+  return `
+    <svg
+      class="result-model-shape"
+      width="${width}"
+      height="${height}"
+      viewBox="0 0 ${width} ${height}"
+      aria-hidden="true"
+      preserveAspectRatio="none">
+      <path class="result-model-shape-body" d="${path}"></path>
+      ${topSurface}
+      ${connection}
+    </svg>
+  `
+}
+
+function calculateTumblerApproximation(modelVolume, tumblerType) {
+  const realVolume = REAL_TUMBLER_VOLUMES[tumblerType]
+
+  if (!Number.isFinite(realVolume) || realVolume <= 0) return null
+
+  const difference = Math.abs(modelVolume - realVolume)
+  const errorRate = (difference / realVolume) * 100
+  const evaluation = errorRate <= 5
+    ? '실제 텀블러를 매우 잘 근사했습니다.'
+    : errorRate <= 10
+      ? '실제 텀블러와 비슷하게 모델링했습니다.'
+      : '실제 텀블러와 차이가 있으므로 모델을 다시 수정해 보세요.'
+
+  return { realVolume, difference, errorRate, evaluation }
 }
 
 function renderModelingResult() {
@@ -487,21 +546,14 @@ function renderModelingResult() {
 
   elements.modelingResultShapes.innerHTML = displayedShapes.length > 0
     ? displayedShapes.map((shape, index) => {
-        const visual = getResultShapeVisualMetrics(shape, modelDiagramScale)
-        const overlap = index === 0 ? 0 : Math.min(7, shape.height * modelDiagramScale * 0.16)
+        const overlap = index === 0 ? 0 : 1
 
         return `
         <article
           class="result-model-part result-model-color-${index % 3}"
           style="height:${shape.height * modelDiagramScale}px;margin-top:-${overlap}px;z-index:${displayedShapes.length - index}">
           <div class="result-model-part-graphic">
-            <div class="result-model-shape" style="${visual.container}">
-              <div class="result-model-shape-body" style="${visual.body}"></div>
-              <div
-                class="result-model-cap result-model-cap-top ${index === 0 ? 'result-model-cap-surface' : 'result-model-cap-connection'}"
-                style="${visual.topCap}">
-              </div>
-            </div>
+            ${renderResultShapeDiagram(shape, modelDiagramScale, { isTopShape: index === 0 })}
           </div>
           <div class="result-model-part-label">
             <strong>${index + 1}. ${escapeHtml(getShapeName(shape))}</strong>
@@ -532,8 +584,24 @@ function renderModelingResult() {
       }).join('')
     : '<p class="result-empty">표시할 부피 계산 결과가 없습니다.</p>'
 
+  const programTotal = calculateModelVolume()
+  const comparison = calculateTumblerApproximation(programTotal, goalSettings.tumblerType)
+
   elements.modelingResultStudentTotal.textContent = `${studentTotal.toFixed(1)} mL`
-  elements.modelingResultProgramTotal.textContent = `${calculateModelVolume().toFixed(1)} mL`
+  elements.modelingResultProgramTotal.textContent = `${programTotal.toFixed(1)} mL`
+  elements.modelingResultTumblerComparison.innerHTML = comparison
+    ? `
+      <div class="result-comparison-metric">
+        <dt>실제 텀블러 용량</dt>
+        <dd>${comparison.realVolume.toFixed(1)} mL</dd>
+      </div>
+      <div class="result-comparison-metric">
+        <dt>근사 오차</dt>
+        <dd>${comparison.difference.toFixed(1)} mL <span>(${comparison.errorRate.toFixed(2)}%)</span></dd>
+      </div>
+      <p class="result-comparison-evaluation">${escapeHtml(comparison.evaluation)}</p>
+    `
+    : '<p class="result-comparison-unavailable">비교할 텀블러를 선택하지 않았습니다.</p>'
 }
 
 function showModelingResult() {
