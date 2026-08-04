@@ -453,7 +453,7 @@ function getResultShapeVisualMetrics(shape, scale) {
   }
 }
 
-function renderResultShapeDiagram(shape, scale, { isTopShape }) {
+function renderResultShapeDiagram(shape, scale, { isTopShape, isBottomShape }) {
   const visual = getResultShapeVisualMetrics(shape, scale)
   const width = Math.max(visual.width, 3)
   const height = Math.max(visual.height, 1)
@@ -462,12 +462,17 @@ function renderResultShapeDiagram(shape, scale, { isTopShape }) {
   const bottomLeft = visual.bottomX
   const bottomRight = visual.bottomX + visual.bottomWidth
   const topY = visual.ellipseHeight / 2
-  const path = `M ${topLeft} ${topY} L ${bottomLeft} ${height} L ${bottomRight} ${height} L ${topRight} ${topY} Z`
+  const bottomCurveDepth = Math.min(5, Math.max(2.5, visual.bottomWidth * 0.04))
+  const bodyPath = `M ${topLeft} ${topY} L ${bottomLeft} ${height} Q ${width / 2} ${height + bottomCurveDepth} ${bottomRight} ${height} L ${topRight} ${topY} Z`
+  const sideOutline = `M ${topLeft} ${topY} L ${bottomLeft} ${height} M ${topRight} ${topY} L ${bottomRight} ${height}`
   const topSurface = isTopShape && visual.topWidth > 3
     ? `<ellipse class="result-model-top-surface" cx="${width / 2}" cy="${topY}" rx="${visual.topWidth / 2}" ry="${visual.ellipseHeight / 2}"></ellipse>`
     : ''
   const connection = !isTopShape && visual.topWidth > 3
     ? `<path class="result-model-connection" d="M ${topLeft} ${topY} Q ${width / 2} ${topY + visual.ellipseHeight / 2} ${topRight} ${topY}"></path>`
+    : ''
+  const bottomOutline = isBottomShape && visual.bottomWidth > 3
+    ? `<path class="result-model-bottom-outline" d="M ${bottomLeft} ${height} Q ${width / 2} ${height + bottomCurveDepth} ${bottomRight} ${height}"></path>`
     : ''
 
   return `
@@ -478,9 +483,11 @@ function renderResultShapeDiagram(shape, scale, { isTopShape }) {
       viewBox="0 0 ${width} ${height}"
       aria-hidden="true"
       preserveAspectRatio="none">
-      <path class="result-model-shape-body" d="${path}"></path>
+      <path class="result-model-shape-body" d="${bodyPath}"></path>
+      <path class="result-model-side-outline" d="${sideOutline}"></path>
       ${topSurface}
       ${connection}
+      ${bottomOutline}
     </svg>
   `
 }
@@ -553,7 +560,10 @@ function renderModelingResult() {
           class="result-model-part result-model-color-${index % 3}"
           style="height:${shape.height * modelDiagramScale}px;margin-top:-${overlap}px;z-index:${displayedShapes.length - index}">
           <div class="result-model-part-graphic">
-            ${renderResultShapeDiagram(shape, modelDiagramScale, { isTopShape: index === 0 })}
+            ${renderResultShapeDiagram(shape, modelDiagramScale, {
+              isTopShape: index === 0,
+              isBottomShape: index === displayedShapes.length - 1,
+            })}
           </div>
           <div class="result-model-part-label">
             <strong>${index + 1}. ${escapeHtml(getShapeName(shape))}</strong>

@@ -683,13 +683,18 @@ button:active {
 
 .result-model-shape-body {
   fill: rgba(var(--shape-rgb), 0.3);
+  stroke: none;
+}
+
+.result-model-side-outline {
+  fill: none;
   stroke: rgba(41, 65, 88, 0.78);
   stroke-width: 1.15;
   vector-effect: non-scaling-stroke;
 }
 
 .result-model-top-surface {
-  fill: rgba(var(--shape-rgb), 0.18);
+  fill: none;
   stroke: rgba(41, 65, 88, 0.78);
   stroke-width: 1.1;
   vector-effect: non-scaling-stroke;
@@ -699,6 +704,14 @@ button:active {
   fill: none;
   stroke: rgba(41, 65, 88, 0.3);
   stroke-width: 0.75;
+  vector-effect: non-scaling-stroke;
+}
+
+.result-model-bottom-outline {
+  fill: none;
+  stroke: rgba(41, 65, 88, 0.78);
+  stroke-width: 1.15;
+  stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }
 
