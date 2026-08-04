@@ -698,6 +698,7 @@
                 <dt>프로그램이 계산한 모델 부피</dt>
                 <dd id="modelingResultProgramTotal">0.0 mL</dd>
               </div>
+              <div id="modelingResultTumblerComparison" class="result-tumbler-comparison"></div>
             </dl>
           </section>
 
@@ -883,6 +884,8 @@
 
       const formatInputCm = (value) => `${Number(Number(value).toFixed(6))} cm`
 
+      const formatCalculatedCm = (value) => `${Number(value).toFixed(2)} cm`
+
       const formatMl = (value) => `${Number(value).toFixed(1)} mL`
 
       const setSaveStudentVolumeEnabled = (enabled) => {
@@ -973,14 +976,14 @@
           높이: ${formatInputCm(height)}<br>
           <br>
           <b>잘리기 전 큰 원뿔 정보</b><br>
-          큰 원뿔 높이: ${formatCm(largeConeHeight)}<br>
-          큰 원뿔 밑면 반지름: ${formatCm(largeRadius)}<br>
-          큰 원뿔 모선: ${formatCm(largeConeSlantHeight)}<br>
+          큰 원뿔 높이: ${formatCalculatedCm(largeConeHeight)}<br>
+          큰 원뿔 밑면 반지름: ${formatInputCm(largeRadius)}<br>
+          큰 원뿔 모선: ${formatCalculatedCm(largeConeSlantHeight)}<br>
           <br>
           <b>잘려나간 작은 원뿔 정보</b><br>
-          작은 원뿔 높이: ${formatCm(smallConeHeight)}<br>
-          작은 원뿔 밑면 반지름: ${formatCm(smallRadius)}<br>
-          작은 원뿔 모선: ${formatCm(smallConeSlantHeight)}
+          작은 원뿔 높이: ${formatCalculatedCm(smallConeHeight)}<br>
+          작은 원뿔 밑면 반지름: ${formatInputCm(smallRadius)}<br>
+          작은 원뿔 모선: ${formatCalculatedCm(smallConeSlantHeight)}
         `
       }
 
@@ -1630,8 +1633,12 @@
 
         selectedVolumeNeededInfo.forEach((key) => {
           const item = document.createElement('li')
+          const isInputRadius = key === 'largeConeRadius' || key === 'smallConeRadius'
+          const valueText = isInputRadius
+            ? formatInputCm(measurements[key])
+            : formatCalculatedCm(measurements[key])
 
-          item.textContent = `${labels[key]} : ${measurements[key].toFixed(1)} cm`
+          item.textContent = `${labels[key]} : ${valueText}`
           volumeSelectedInfoSummary?.append(item)
         })
       }
